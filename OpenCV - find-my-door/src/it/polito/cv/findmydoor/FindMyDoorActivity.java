@@ -1,5 +1,6 @@
 package it.polito.cv.findmydoor;
 
+import java.text.Normalizer;
 import java.util.List;
 
 import org.opencv.android.BaseLoaderCallback;
@@ -10,6 +11,7 @@ import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
+import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
@@ -35,6 +37,9 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 	private boolean mIsColorSelected = false;
 	private Mat mRgba;
 	private Mat mEdit;
+	private Mat mDst;
+	private Mat mDstSc;
+	private int thresh = 200;
 
 	private Scalar mBlobColorRgba;
 	private Scalar mBlobColorHsv;
@@ -171,33 +176,46 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 	}
 
 	public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
-        mRgba = inputFrame.rgba();
-        mEdit = new Mat();
+		mRgba = inputFrame.rgba();
+		mEdit = new Mat();
+		mDst = new Mat(mRgba.size(), CvType.CV_32FC1);
 
-        Imgproc.GaussianBlur(mRgba, mEdit, new Size(15, 15), 2, 2);
+		// Smoothing
+		// TODO modificare i parametri di smoothing e canny per cercare di migliorare la situazione
+		Size kSize = new Size(5, 5);
+		double sigmaX = 5, sigmaY = 5;
+		Imgproc.GaussianBlur(mRgba, mEdit, kSize, sigmaX, sigmaY);
 
-        Imgproc.Canny(mEdit, mEdit, 80, 90);
+		// Detecting edge
+		int lowThres = 80, upThres = 90;
+		Imgproc.Canny(mEdit, mEdit, lowThres, upThres);
+		// return mEdit;
 
-//        Imgproc.cornerHarris(mEdit, mEdit, 15, 15, Imgproc.BORDER_DEFAULT);
-        
-        Imgproc.cvtColor(mEdit, mEdit, Imgproc.COLOR_GRAY2BGRA, 4);
+		// Harris Detector parameters
+		int blockSize = 3;
+		int apertureSize = 1;
+		double k = 0.04;
 
-        
-//        if (mIsColorSelected) {
-//            mDetector.process(mRgba);
-//            List<MatOfPoint> contours = mDetector.getContours();
-//            Log.e(TAG, "Contours count: " + contours.size());
-//            Imgproc.drawContours(mRgba, contours, -1, CONTOUR_COLOR);
-//
-//            Mat colorLabel = mRgba.submat(4, 68, 4, 68);
-//            colorLabel.setTo(mBlobColorRgba);
-//
-//            Mat spectrumLabel = mRgba.submat(4, 4 + mSpectrum.rows(), 70, 70 + mSpectrum.cols());
-//            mSpectrum.copyTo(spectrumLabel);
-//        }
+		// Detecting corners
+		Imgproc.cornerHarris(mEdit, mDst, blockSize, apertureSize, k,
+				Imgproc.BORDER_DEFAULT);
+		// Normalizing
+		Core.normalize(mDst, mDst, 0, 255, Core.NORM_MINMAX, CvType.CV_32FC1);
+		mDstSc = mDst.clone();
+		Core.convertScaleAbs(mDst, mDstSc);
 
-        return mEdit;
-    }
+		// / Drawing a circle around corners
+		for (int j = 0; j < mDst.rows(); j++) {
+			for (int i = 0; i < mDst.cols(); i++) {
+				if (((int) mDst.get(j, i)[0]) > thresh) {
+					Core.circle(mDstSc, new Point(i, j), 5, new Scalar(0), 2,
+							8, 0);
+				}
+			}
+		}
+
+		return mDstSc;
+	}
 
 	private Scalar converScalarHsv2Rgba(Scalar hsvColor) {
 		Mat pointMatRgba = new Mat();
