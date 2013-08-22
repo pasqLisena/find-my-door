@@ -16,6 +16,7 @@ import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
+import org.opencv.core.Core.MinMaxLocResult;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.imgproc.Imgproc;
@@ -59,7 +60,7 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 			case LoaderCallbackInterface.SUCCESS: {
 				Log.i(TAG, "OpenCV loaded successfully");
 				mOpenCvCameraView.enableView();
-				mOpenCvCameraView.setOnTouchListener(FindMyDoorActivity.this);
+				// mOpenCvCameraView.setOnTouchListener(FindMyDoorActivity.this);
 			}
 				break;
 			default: {
@@ -123,56 +124,56 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 	}
 
 	public boolean onTouch(View v, MotionEvent event) {
-//		int cols = mRgba.cols();
-//		int rows = mRgba.rows();
-//
-//		int xOffset = (mOpenCvCameraView.getWidth() - cols) / 2;
-//		int yOffset = (mOpenCvCameraView.getHeight() - rows) / 2;
-//
-//		int x = (int) event.getX() - xOffset;
-//		int y = (int) event.getY() - yOffset;
-//
-//		Log.i(TAG, "Touch image coordinates: (" + x + ", " + y + ")");
-//
-//		if ((x < 0) || (y < 0) || (x > cols) || (y > rows))
-//			return false;
-//
-//		Rect touchedRect = new Rect();
-//
-//		touchedRect.x = (x > 4) ? x - 4 : 0;
-//		touchedRect.y = (y > 4) ? y - 4 : 0;
-//
-//		touchedRect.width = (x + 4 < cols) ? x + 4 - touchedRect.x : cols
-//				- touchedRect.x;
-//		touchedRect.height = (y + 4 < rows) ? y + 4 - touchedRect.y : rows
-//				- touchedRect.y;
-//
-//		Mat touchedRegionRgba = mRgba.submat(touchedRect);
-//
-//		Mat touchedRegionHsv = new Mat();
-//		Imgproc.cvtColor(touchedRegionRgba, touchedRegionHsv,
-//				Imgproc.COLOR_RGB2HSV_FULL);
-//
-//		// Calculate average color of touched region
-//		mBlobColorHsv = Core.sumElems(touchedRegionHsv);
-//		int pointCount = touchedRect.width * touchedRect.height;
-//		for (int i = 0; i < mBlobColorHsv.val.length; i++)
-//			mBlobColorHsv.val[i] /= pointCount;
-//
-//		mBlobColorRgba = converScalarHsv2Rgba(mBlobColorHsv);
-//
-//		Log.i(TAG, "Touched rgba color: (" + mBlobColorRgba.val[0] + ", "
-//				+ mBlobColorRgba.val[1] + ", " + mBlobColorRgba.val[2] + ", "
-//				+ mBlobColorRgba.val[3] + ")");
-//
-//		mDetector.setHsvColor(mBlobColorHsv);
-//
-//		Imgproc.resize(mDetector.getSpectrum(), mSpectrum, SPECTRUM_SIZE);
-//
-//		mIsColorSelected = true;
-//
-//		touchedRegionRgba.release();
-//		touchedRegionHsv.release();
+		// int cols = mRgba.cols();
+		// int rows = mRgba.rows();
+		//
+		// int xOffset = (mOpenCvCameraView.getWidth() - cols) / 2;
+		// int yOffset = (mOpenCvCameraView.getHeight() - rows) / 2;
+		//
+		// int x = (int) event.getX() - xOffset;
+		// int y = (int) event.getY() - yOffset;
+		//
+		// Log.i(TAG, "Touch image coordinates: (" + x + ", " + y + ")");
+		//
+		// if ((x < 0) || (y < 0) || (x > cols) || (y > rows))
+		// return false;
+		//
+		// Rect touchedRect = new Rect();
+		//
+		// touchedRect.x = (x > 4) ? x - 4 : 0;
+		// touchedRect.y = (y > 4) ? y - 4 : 0;
+		//
+		// touchedRect.width = (x + 4 < cols) ? x + 4 - touchedRect.x : cols
+		// - touchedRect.x;
+		// touchedRect.height = (y + 4 < rows) ? y + 4 - touchedRect.y : rows
+		// - touchedRect.y;
+		//
+		// Mat touchedRegionRgba = mRgba.submat(touchedRect);
+		//
+		// Mat touchedRegionHsv = new Mat();
+		// Imgproc.cvtColor(touchedRegionRgba, touchedRegionHsv,
+		// Imgproc.COLOR_RGB2HSV_FULL);
+		//
+		// // Calculate average color of touched region
+		// mBlobColorHsv = Core.sumElems(touchedRegionHsv);
+		// int pointCount = touchedRect.width * touchedRect.height;
+		// for (int i = 0; i < mBlobColorHsv.val.length; i++)
+		// mBlobColorHsv.val[i] /= pointCount;
+		//
+		// mBlobColorRgba = converScalarHsv2Rgba(mBlobColorHsv);
+		//
+		// Log.i(TAG, "Touched rgba color: (" + mBlobColorRgba.val[0] + ", "
+		// + mBlobColorRgba.val[1] + ", " + mBlobColorRgba.val[2] + ", "
+		// + mBlobColorRgba.val[3] + ")");
+		//
+		// mDetector.setHsvColor(mBlobColorHsv);
+		//
+		// Imgproc.resize(mDetector.getSpectrum(), mSpectrum, SPECTRUM_SIZE);
+		//
+		// mIsColorSelected = true;
+		//
+		// touchedRegionRgba.release();
+		// touchedRegionHsv.release();
 
 		return false; // don't need subsequent touch events
 	}
@@ -183,7 +184,7 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 		mDst = new Mat(mRgba.size(), CvType.CV_32FC1);
 
 		// Smoothing
-		// TODO modificare i parametri di smoothing e canny per cercare di migliorare la situazione
+		// migliorare la situazione
 		Size kSize = new Size(5, 5);
 		double sigmaX = 5, sigmaY = 5;
 		Imgproc.GaussianBlur(mRgba, mEdit, kSize, sigmaX, sigmaY);
@@ -191,36 +192,59 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 		// Detecting edge
 		int lowThres = 60, upThres = 90;
 		Imgproc.Canny(mEdit, mEdit, lowThres, upThres, 3, true);
-//		 return mEdit;
+		// return mEdit;
 
-		
-//		Imgproc.cvtColor(mEdit, mEdit, Imgproc.COLOR_RGBA2GRAY);
+		// Imgproc.cvtColor(mEdit, mEdit, Imgproc.COLOR_RGBA2GRAY);
 		// Harris Detector parameters
-		int blockSize = 3;
-		int apertureSize = 1;
+		int blockSize = 5;
+		int apertureSize = 3;
 		double k = 0.04;
 
-		// Detecting corners
-		Imgproc.cornerHarris(mEdit, mDst, blockSize, apertureSize, k,
+		// Custom corner detector
+		Imgproc.cornerMinEigenVal(mEdit, mDst, blockSize, apertureSize,
 				Imgproc.BORDER_DEFAULT);
-		// Normalizing
-		Core.normalize(mDst, mDst, 0, 255, Core.NORM_MINMAX, CvType.CV_32FC1);
-		mDstSc = mDst.clone();
-		Core.convertScaleAbs(mDst, mDstSc);
+		MinMaxLocResult mmLocRes = Core.minMaxLoc(mDst);
 
-		// / Drawing a circle around corners
-		for (int j = 0; j < mDst.rows(); j++) {
-			for (int i = 0; i < mDst.cols(); i++) {
-				if (((int) mDst.get(j, i)[0]) > thresh) {
-					Core.circle(mRgba, new Point(i, j), 5, new Scalar(0), 2,
-							8, 0);
+		// TODO giocare con questi paramentri
+		int myShiTomasi_qualityLevel = 50;
+		int max_qualityLevel = 180;
+
+		if (myShiTomasi_qualityLevel < 1) {
+			myShiTomasi_qualityLevel = 1;
+		}
+		for (int j = 0; j < mEdit.rows(); j++) {
+			for (int i = 0; i < mEdit.cols(); i++) {
+				if (mDst.get(j, i)[0] > mmLocRes.minVal
+						+ (mmLocRes.maxVal - mmLocRes.minVal)
+						* myShiTomasi_qualityLevel / max_qualityLevel) {
+					Core.circle(mRgba, new Point(i, j), 4, new Scalar(
+							255 * Math.random(), 255 * Math.random(),
+							255 * Math.random()), -1, 8, 0);
 				}
 			}
 		}
 
+		// // Detecting corners
+		// Imgproc.cornerHarris(mEdit, mDst, blockSize, apertureSize, k,
+		// Imgproc.BORDER_DEFAULT);
+		// // Normalizing
+		// Core.normalize(mDst, mDst, 0, 255, Core.NORM_MINMAX,
+		// CvType.CV_32FC1);
+		// mDstSc = mDst.clone();
+		// Core.convertScaleAbs(mDst, mDstSc);
+		//
+		// // / Drawing a circle around corners
+		// for (int j = 0; j < mDst.rows(); j++) {
+		// for (int i = 0; i < mDst.cols(); i++) {
+		// if (((int) mDst.get(j, i)[0]) > thresh) {
+		// Core.circle(mEdit, new Point(i, j), 5, new Scalar(255, 0, 0), 2,
+		// 8, 0);
+		// }
+		// }
+		// }
+		//
 		return mRgba;
 	}
-	
 
 	private Scalar converScalarHsv2Rgba(Scalar hsvColor) {
 		Mat pointMatRgba = new Mat();
