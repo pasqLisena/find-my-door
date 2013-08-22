@@ -11,6 +11,7 @@ import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
+import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
@@ -21,6 +22,7 @@ import org.opencv.imgproc.Imgproc;
 
 import it.polito.cv.findmydoor.R;
 import android.app.Activity;
+import android.graphics.PointF;
 import android.os.Bundle;
 import android.text.BoringLayout;
 import android.util.Log;
@@ -121,56 +123,56 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 	}
 
 	public boolean onTouch(View v, MotionEvent event) {
-		int cols = mRgba.cols();
-		int rows = mRgba.rows();
-
-		int xOffset = (mOpenCvCameraView.getWidth() - cols) / 2;
-		int yOffset = (mOpenCvCameraView.getHeight() - rows) / 2;
-
-		int x = (int) event.getX() - xOffset;
-		int y = (int) event.getY() - yOffset;
-
-		Log.i(TAG, "Touch image coordinates: (" + x + ", " + y + ")");
-
-		if ((x < 0) || (y < 0) || (x > cols) || (y > rows))
-			return false;
-
-		Rect touchedRect = new Rect();
-
-		touchedRect.x = (x > 4) ? x - 4 : 0;
-		touchedRect.y = (y > 4) ? y - 4 : 0;
-
-		touchedRect.width = (x + 4 < cols) ? x + 4 - touchedRect.x : cols
-				- touchedRect.x;
-		touchedRect.height = (y + 4 < rows) ? y + 4 - touchedRect.y : rows
-				- touchedRect.y;
-
-		Mat touchedRegionRgba = mRgba.submat(touchedRect);
-
-		Mat touchedRegionHsv = new Mat();
-		Imgproc.cvtColor(touchedRegionRgba, touchedRegionHsv,
-				Imgproc.COLOR_RGB2HSV_FULL);
-
-		// Calculate average color of touched region
-		mBlobColorHsv = Core.sumElems(touchedRegionHsv);
-		int pointCount = touchedRect.width * touchedRect.height;
-		for (int i = 0; i < mBlobColorHsv.val.length; i++)
-			mBlobColorHsv.val[i] /= pointCount;
-
-		mBlobColorRgba = converScalarHsv2Rgba(mBlobColorHsv);
-
-		Log.i(TAG, "Touched rgba color: (" + mBlobColorRgba.val[0] + ", "
-				+ mBlobColorRgba.val[1] + ", " + mBlobColorRgba.val[2] + ", "
-				+ mBlobColorRgba.val[3] + ")");
-
-		mDetector.setHsvColor(mBlobColorHsv);
-
-		Imgproc.resize(mDetector.getSpectrum(), mSpectrum, SPECTRUM_SIZE);
-
-		mIsColorSelected = true;
-
-		touchedRegionRgba.release();
-		touchedRegionHsv.release();
+//		int cols = mRgba.cols();
+//		int rows = mRgba.rows();
+//
+//		int xOffset = (mOpenCvCameraView.getWidth() - cols) / 2;
+//		int yOffset = (mOpenCvCameraView.getHeight() - rows) / 2;
+//
+//		int x = (int) event.getX() - xOffset;
+//		int y = (int) event.getY() - yOffset;
+//
+//		Log.i(TAG, "Touch image coordinates: (" + x + ", " + y + ")");
+//
+//		if ((x < 0) || (y < 0) || (x > cols) || (y > rows))
+//			return false;
+//
+//		Rect touchedRect = new Rect();
+//
+//		touchedRect.x = (x > 4) ? x - 4 : 0;
+//		touchedRect.y = (y > 4) ? y - 4 : 0;
+//
+//		touchedRect.width = (x + 4 < cols) ? x + 4 - touchedRect.x : cols
+//				- touchedRect.x;
+//		touchedRect.height = (y + 4 < rows) ? y + 4 - touchedRect.y : rows
+//				- touchedRect.y;
+//
+//		Mat touchedRegionRgba = mRgba.submat(touchedRect);
+//
+//		Mat touchedRegionHsv = new Mat();
+//		Imgproc.cvtColor(touchedRegionRgba, touchedRegionHsv,
+//				Imgproc.COLOR_RGB2HSV_FULL);
+//
+//		// Calculate average color of touched region
+//		mBlobColorHsv = Core.sumElems(touchedRegionHsv);
+//		int pointCount = touchedRect.width * touchedRect.height;
+//		for (int i = 0; i < mBlobColorHsv.val.length; i++)
+//			mBlobColorHsv.val[i] /= pointCount;
+//
+//		mBlobColorRgba = converScalarHsv2Rgba(mBlobColorHsv);
+//
+//		Log.i(TAG, "Touched rgba color: (" + mBlobColorRgba.val[0] + ", "
+//				+ mBlobColorRgba.val[1] + ", " + mBlobColorRgba.val[2] + ", "
+//				+ mBlobColorRgba.val[3] + ")");
+//
+//		mDetector.setHsvColor(mBlobColorHsv);
+//
+//		Imgproc.resize(mDetector.getSpectrum(), mSpectrum, SPECTRUM_SIZE);
+//
+//		mIsColorSelected = true;
+//
+//		touchedRegionRgba.release();
+//		touchedRegionHsv.release();
 
 		return false; // don't need subsequent touch events
 	}
@@ -187,10 +189,12 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 		Imgproc.GaussianBlur(mRgba, mEdit, kSize, sigmaX, sigmaY);
 
 		// Detecting edge
-		int lowThres = 80, upThres = 90;
-		Imgproc.Canny(mEdit, mEdit, lowThres, upThres);
-		// return mEdit;
+		int lowThres = 60, upThres = 90;
+		Imgproc.Canny(mEdit, mEdit, lowThres, upThres, 3, true);
+//		 return mEdit;
 
+		
+//		Imgproc.cvtColor(mEdit, mEdit, Imgproc.COLOR_RGBA2GRAY);
 		// Harris Detector parameters
 		int blockSize = 3;
 		int apertureSize = 1;
@@ -208,14 +212,15 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 		for (int j = 0; j < mDst.rows(); j++) {
 			for (int i = 0; i < mDst.cols(); i++) {
 				if (((int) mDst.get(j, i)[0]) > thresh) {
-					Core.circle(mDstSc, new Point(i, j), 5, new Scalar(0), 2,
+					Core.circle(mRgba, new Point(i, j), 5, new Scalar(0), 2,
 							8, 0);
 				}
 			}
 		}
 
-		return mDstSc;
+		return mRgba;
 	}
+	
 
 	private Scalar converScalarHsv2Rgba(Scalar hsvColor) {
 		Mat pointMatRgba = new Mat();
