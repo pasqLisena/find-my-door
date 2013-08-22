@@ -42,7 +42,8 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 	private Mat mEdit;
 	private Mat mDst;
 	private Mat mDstSc;
-	private int thresh = 200;
+	//PARAMETRO IMPORTANTISSIMO!!!
+	private int thresh = 100;
 
 	private Scalar mBlobColorRgba;
 	private Scalar mBlobColorHsv;
@@ -196,53 +197,52 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 
 		// Imgproc.cvtColor(mEdit, mEdit, Imgproc.COLOR_RGBA2GRAY);
 		// Harris Detector parameters
-		int blockSize = 5;
+		int blockSize = 9;
 		int apertureSize = 3;
 		double k = 0.04;
 
 		// Custom corner detector
-		Imgproc.cornerMinEigenVal(mEdit, mDst, blockSize, apertureSize,
+//		Imgproc.cornerMinEigenVal(mEdit, mDst, blockSize, apertureSize,
+//				Imgproc.BORDER_DEFAULT);
+//		MinMaxLocResult mmLocRes = Core.minMaxLoc(mDst);
+//
+//		// TODO giocare con questi paramentri
+//		int myShiTomasi_qualityLevel = 50;
+//		int max_qualityLevel = 180;
+//
+//		if (myShiTomasi_qualityLevel < 1) {
+//			myShiTomasi_qualityLevel = 1;
+//		}
+//		for (int j = 0; j < mEdit.rows(); j++) {
+//			for (int i = 0; i < mEdit.cols(); i++) {
+//				if (mDst.get(j, i)[0] > mmLocRes.minVal
+//						+ (mmLocRes.maxVal - mmLocRes.minVal)
+//						* myShiTomasi_qualityLevel / max_qualityLevel) {
+//					Core.circle(mRgba, new Point(i, j), 4, new Scalar(
+//							255 * Math.random(), 255 * Math.random(),
+//							255 * Math.random()), -1, 8, 0);
+//				}
+//			}
+//		}
+
+		// // Detecting corners
+		Imgproc.cornerHarris(mEdit, mDst, blockSize, apertureSize, k,
 				Imgproc.BORDER_DEFAULT);
-		MinMaxLocResult mmLocRes = Core.minMaxLoc(mDst);
+		// Normalizing
+		Core.normalize(mDst, mDst, 0, 255, Core.NORM_MINMAX, CvType.CV_32FC1);
+		mDstSc = mDst.clone();
+		Core.convertScaleAbs(mDst, mDstSc);
 
-		// TODO giocare con questi paramentri
-		int myShiTomasi_qualityLevel = 50;
-		int max_qualityLevel = 180;
-
-		if (myShiTomasi_qualityLevel < 1) {
-			myShiTomasi_qualityLevel = 1;
-		}
-		for (int j = 0; j < mEdit.rows(); j++) {
-			for (int i = 0; i < mEdit.cols(); i++) {
-				if (mDst.get(j, i)[0] > mmLocRes.minVal
-						+ (mmLocRes.maxVal - mmLocRes.minVal)
-						* myShiTomasi_qualityLevel / max_qualityLevel) {
-					Core.circle(mRgba, new Point(i, j), 4, new Scalar(
-							255 * Math.random(), 255 * Math.random(),
-							255 * Math.random()), -1, 8, 0);
+		// / Drawing a circle around corners
+		for (int j = 0; j < mDst.rows(); j++) {
+			for (int i = 0; i < mDst.cols(); i++) {
+				if (((int) mDst.get(j, i)[0]) > thresh) {
+					Core.circle(mRgba, new Point(i, j), 5,
+							new Scalar(255, 0, 0), 2, 8, 0);
 				}
 			}
 		}
 
-		// // Detecting corners
-		// Imgproc.cornerHarris(mEdit, mDst, blockSize, apertureSize, k,
-		// Imgproc.BORDER_DEFAULT);
-		// // Normalizing
-		// Core.normalize(mDst, mDst, 0, 255, Core.NORM_MINMAX,
-		// CvType.CV_32FC1);
-		// mDstSc = mDst.clone();
-		// Core.convertScaleAbs(mDst, mDstSc);
-		//
-		// // / Drawing a circle around corners
-		// for (int j = 0; j < mDst.rows(); j++) {
-		// for (int i = 0; i < mDst.cols(); i++) {
-		// if (((int) mDst.get(j, i)[0]) > thresh) {
-		// Core.circle(mEdit, new Point(i, j), 5, new Scalar(255, 0, 0), 2,
-		// 8, 0);
-		// }
-		// }
-		// }
-		//
 		return mRgba;
 	}
 
