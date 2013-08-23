@@ -1,6 +1,7 @@
 package it.polito.cv.findmydoor;
 
 import java.text.Normalizer;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.opencv.android.BaseLoaderCallback;
@@ -22,7 +23,9 @@ import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.imgproc.Imgproc;
 
 import it.polito.cv.findmydoor.R;
+import android.R.integer;
 import android.app.Activity;
+import android.graphics.Color;
 import android.graphics.PointF;
 import android.os.Bundle;
 import android.text.BoringLayout;
@@ -33,7 +36,7 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.view.View.OnTouchListener;
 
-public class FindMyDoorActivity extends Activity implements OnTouchListener,
+public class FindMyDoorActivity extends Activity implements
 		CvCameraViewListener2 {
 	private static final String TAG = "OCV::Activity";
 
@@ -42,15 +45,13 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 	private Mat mEdit;
 	private Mat mDst;
 	private Mat mDstSc;
-	//PARAMETRO IMPORTANTISSIMO!!!
+	// PARAMETRO IMPORTANTISSIMO!!!
 	private int thresh = 100;
+	private List<Point> corners;
 
-	private Scalar mBlobColorRgba;
-	private Scalar mBlobColorHsv;
-	private DoorDetector mDetector;
-	private Mat mSpectrum;
-	private Size SPECTRUM_SIZE;
-	private Scalar CONTOUR_COLOR;
+	double heightThresL, heightThresH, widthThresL, widthThresH;
+	int dirThresL, dirThresH, parallelThres;
+	double HWThresL, HWThresH;
 
 	private CameraBridgeViewBase mOpenCvCameraView;
 
@@ -71,6 +72,8 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 			}
 		}
 	};
+
+	private double imgDiag;
 
 	public FindMyDoorActivity() {
 		Log.i(TAG, "Instantiated new " + this.getClass());
@@ -112,77 +115,20 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 
 	public void onCameraViewStarted(int width, int height) {
 		mRgba = new Mat(height, width, CvType.CV_8UC4);
-		mDetector = new DoorDetector();
-		mSpectrum = new Mat();
-		mBlobColorRgba = new Scalar(255);
-		mBlobColorHsv = new Scalar(255);
-		SPECTRUM_SIZE = new Size(200, 64);
-		CONTOUR_COLOR = new Scalar(255, 0, 0, 255);
+		corners = new ArrayList<Point>();
+
+		imgDiag = Math.sqrt(Math.pow(height, 2) + Math.pow(width, 2));
 	}
 
 	public void onCameraViewStopped() {
 		mRgba.release();
 	}
 
-	public boolean onTouch(View v, MotionEvent event) {
-		// int cols = mRgba.cols();
-		// int rows = mRgba.rows();
-		//
-		// int xOffset = (mOpenCvCameraView.getWidth() - cols) / 2;
-		// int yOffset = (mOpenCvCameraView.getHeight() - rows) / 2;
-		//
-		// int x = (int) event.getX() - xOffset;
-		// int y = (int) event.getY() - yOffset;
-		//
-		// Log.i(TAG, "Touch image coordinates: (" + x + ", " + y + ")");
-		//
-		// if ((x < 0) || (y < 0) || (x > cols) || (y > rows))
-		// return false;
-		//
-		// Rect touchedRect = new Rect();
-		//
-		// touchedRect.x = (x > 4) ? x - 4 : 0;
-		// touchedRect.y = (y > 4) ? y - 4 : 0;
-		//
-		// touchedRect.width = (x + 4 < cols) ? x + 4 - touchedRect.x : cols
-		// - touchedRect.x;
-		// touchedRect.height = (y + 4 < rows) ? y + 4 - touchedRect.y : rows
-		// - touchedRect.y;
-		//
-		// Mat touchedRegionRgba = mRgba.submat(touchedRect);
-		//
-		// Mat touchedRegionHsv = new Mat();
-		// Imgproc.cvtColor(touchedRegionRgba, touchedRegionHsv,
-		// Imgproc.COLOR_RGB2HSV_FULL);
-		//
-		// // Calculate average color of touched region
-		// mBlobColorHsv = Core.sumElems(touchedRegionHsv);
-		// int pointCount = touchedRect.width * touchedRect.height;
-		// for (int i = 0; i < mBlobColorHsv.val.length; i++)
-		// mBlobColorHsv.val[i] /= pointCount;
-		//
-		// mBlobColorRgba = converScalarHsv2Rgba(mBlobColorHsv);
-		//
-		// Log.i(TAG, "Touched rgba color: (" + mBlobColorRgba.val[0] + ", "
-		// + mBlobColorRgba.val[1] + ", " + mBlobColorRgba.val[2] + ", "
-		// + mBlobColorRgba.val[3] + ")");
-		//
-		// mDetector.setHsvColor(mBlobColorHsv);
-		//
-		// Imgproc.resize(mDetector.getSpectrum(), mSpectrum, SPECTRUM_SIZE);
-		//
-		// mIsColorSelected = true;
-		//
-		// touchedRegionRgba.release();
-		// touchedRegionHsv.release();
-
-		return false; // don't need subsequent touch events
-	}
-
 	public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
 		mRgba = inputFrame.rgba();
 		mEdit = new Mat();
 		mDst = new Mat(mRgba.size(), CvType.CV_32FC1);
+		corners.clear();
 
 		// Smoothing
 		// migliorare la situazione
@@ -195,37 +141,12 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 		Imgproc.Canny(mEdit, mEdit, lowThres, upThres, 3, true);
 		// return mEdit;
 
-		// Imgproc.cvtColor(mEdit, mEdit, Imgproc.COLOR_RGBA2GRAY);
 		// Harris Detector parameters
 		int blockSize = 9;
 		int apertureSize = 3;
 		double k = 0.04;
 
-		// Custom corner detector
-//		Imgproc.cornerMinEigenVal(mEdit, mDst, blockSize, apertureSize,
-//				Imgproc.BORDER_DEFAULT);
-//		MinMaxLocResult mmLocRes = Core.minMaxLoc(mDst);
-//
-//		// TODO giocare con questi paramentri
-//		int myShiTomasi_qualityLevel = 50;
-//		int max_qualityLevel = 180;
-//
-//		if (myShiTomasi_qualityLevel < 1) {
-//			myShiTomasi_qualityLevel = 1;
-//		}
-//		for (int j = 0; j < mEdit.rows(); j++) {
-//			for (int i = 0; i < mEdit.cols(); i++) {
-//				if (mDst.get(j, i)[0] > mmLocRes.minVal
-//						+ (mmLocRes.maxVal - mmLocRes.minVal)
-//						* myShiTomasi_qualityLevel / max_qualityLevel) {
-//					Core.circle(mRgba, new Point(i, j), 4, new Scalar(
-//							255 * Math.random(), 255 * Math.random(),
-//							255 * Math.random()), -1, 8, 0);
-//				}
-//			}
-//		}
-
-		// // Detecting corners
+		// Detecting corners
 		Imgproc.cornerHarris(mEdit, mDst, blockSize, apertureSize, k,
 				Imgproc.BORDER_DEFAULT);
 		// Normalizing
@@ -233,25 +154,109 @@ public class FindMyDoorActivity extends Activity implements OnTouchListener,
 		mDstSc = mDst.clone();
 		Core.convertScaleAbs(mDst, mDstSc);
 
-		// / Drawing a circle around corners
+		// Save corner position in a List
 		for (int j = 0; j < mDst.rows(); j++) {
 			for (int i = 0; i < mDst.cols(); i++) {
 				if (((int) mDst.get(j, i)[0]) > thresh) {
-					Core.circle(mRgba, new Point(i, j), 5,
-							new Scalar(255, 0, 0), 2, 8, 0);
+					corners.add(new Point(i, j));
 				}
 			}
+		}
+
+		// TODO trasformare in costanti (quando saranno definitive)
+		heightThresL = 0.5; // 50% of camera height
+		heightThresH = 0.9; // 80% of camera height
+		widthThresL = 0.1; // 10% of camera width
+		widthThresH = 0.8; // 80% of camera width
+
+		dirThresL = 35;
+		dirThresH = 80;
+		parallelThres = 6;
+
+		HWThresL = 2.0;
+		HWThresH = 3.0;
+
+		int cornersSize = corners.size();
+		Door door = null;
+
+		// For each point
+		for (int i = 0; i < cornersSize; i++) {
+			Point p1 = corners.get(i);
+			// Consider each successive point
+			for (int j = i + 1; j < cornersSize; j++) {
+				Point p2 = corners.get(j);
+
+				double siz12 = calcRelDistance(p1, p2);
+				double dir12 = calcDirection(p1, p2);
+
+				if (siz12 < heightThresL || dir12 < dirThresH)
+					continue;
+
+				// and so on with 3rd and 4th points
+				// TODO sto considerando una porta DRITTA: valutare la
+				// prospettiva
+				for (int l = j + 1; l < cornersSize; l++) {
+					Point p4 = corners.get(l);
+
+					double siz41 = calcRelDistance(p1, p4);
+					double dir41 = calcDirection(p1, p4);
+
+					if (siz41 > widthThresH || dir41 > dirThresL)
+						continue;
+
+					for (int m = l + 1; m < cornersSize; m++) {
+						Point p3 = corners.get(m);
+
+						double siz23 = calcRelDistance(p2, p3);
+						double dir23 = calcDirection(p2, p3);
+						double siz34 = calcRelDistance(p3, p4);
+						double dir34 = calcDirection(p3, p4);
+
+						if (siz34 > heightThresL || siz23 < widthThresL
+								|| dir23 > dirThresL || dir34 < dirThresH
+								|| Math.abs(dir12 - dir34) > parallelThres)
+							continue;
+
+						double sizRatio = (siz12 + siz34) / (siz23 + siz34);
+						if (sizRatio < HWThresL || sizRatio > HWThresH)
+							continue;
+
+						door = new Door(p1, p2, p3, p4);
+						// if here, 1234 is a rectangle
+					}
+				}
+			}
+		}
+
+		// Draw Corners
+		for (Point c : corners) {
+			Core.circle(mRgba, c, 5, new Scalar(255, 0, 0), 2, 8, 0);
+		}
+
+		if (door != null) {
+			Core.line(mRgba, door.getP1(), door.getP2(), new Scalar(0, 255, 0),
+					4);
 		}
 
 		return mRgba;
 	}
 
-	private Scalar converScalarHsv2Rgba(Scalar hsvColor) {
-		Mat pointMatRgba = new Mat();
-		Mat pointMatHsv = new Mat(1, 1, CvType.CV_8UC3, hsvColor);
-		Imgproc.cvtColor(pointMatHsv, pointMatRgba, Imgproc.COLOR_HSV2RGB_FULL,
-				4);
-
-		return new Scalar(pointMatRgba.get(0, 0));
+	/*
+	 * Calculate the relative distance between two points.
+	 * 
+	 * @return the distance within a range of [0,1]
+	 */
+	private double calcRelDistance(Point i, Point j) {
+		double sizX = Math.pow((i.x - j.x), 2);
+		double sizY = Math.pow((i.y - j.y), 2);
+		return Math.sqrt(sizX + sizY) / imgDiag;
 	}
+
+	private double calcDirection(Point i, Point j) {
+		double dfX = Math.abs(i.x - j.x);
+		double dfY = Math.abs(i.y - j.y);
+		double dfRatio = dfX / dfY;
+		return Math.atan(dfRatio * 180 / Math.PI);
+	}
+
 }
