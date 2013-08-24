@@ -45,8 +45,6 @@ public class FindMyDoorActivity extends Activity implements
 	private Mat mEdit;
 	private Mat mDst;
 	private Mat mDstSc;
-	// PARAMETRO IMPORTANTISSIMO!!!
-	private int thresh = 100;
 	private List<Point> corners;
 
 	double heightThresL, heightThresH, widthThresL, widthThresH;
@@ -131,113 +129,143 @@ public class FindMyDoorActivity extends Activity implements
 		corners.clear();
 
 		// Smoothing
-		// migliorare la situazione
 		Size kSize = new Size(5, 5);
-		double sigmaX = 5, sigmaY = 5;
+		double sigmaX = 2.5, sigmaY = 2.5;
 		Imgproc.GaussianBlur(mRgba, mEdit, kSize, sigmaX, sigmaY);
 
+		// Down-sampling
+		int newHeight = mRgba.height() / 2;
+		int newWidth = mRgba.width() / 2;
+		Imgproc.pyrDown(mEdit, mEdit, new Size(newWidth, newHeight));
+
 		// Detecting edge
-		int lowThres = 60, upThres = 90;
+		int lowThres = 70, upThres = 80;
 		Imgproc.Canny(mEdit, mEdit, lowThres, upThres, 3, true);
-		// return mEdit;
 
 		// Harris Detector parameters
-		int blockSize = 9;
-		int apertureSize = 3;
+		int blockSize = 5;
+		int apertureSize = 5;
 		double k = 0.04;
 
-		// Detecting corners
-		Imgproc.cornerHarris(mEdit, mDst, blockSize, apertureSize, k,
-				Imgproc.BORDER_DEFAULT);
-		// Normalizing
-		Core.normalize(mDst, mDst, 0, 255, Core.NORM_MINMAX, CvType.CV_32FC1);
-		mDstSc = mDst.clone();
-		Core.convertScaleAbs(mDst, mDstSc);
-
-		// Save corner position in a List
-		for (int j = 0; j < mDst.rows(); j++) {
-			for (int i = 0; i < mDst.cols(); i++) {
-				if (((int) mDst.get(j, i)[0]) > thresh) {
-					corners.add(new Point(i, j));
-				}
-			}
+		// Detecting corners with Shi-Tomasi algorithm
+		int maxCorners = 25;
+		
+		if (maxCorners < 1) {
+			maxCorners = 1;
 		}
+
+		double qualityLevel = 0.01;
+		double minDistance = 10;
+		int blockSize1 = 5;
+		boolean useHarrisDetector = false;
+		double k1 = 0.04;
+
+		MatOfPoint corners = new MatOfPoint();
+		// Apply corner detection
+
+		int borderSize = 10;
+		Mat mEditBorder = new Mat(new Size(mEdit.height() + borderSize * 2,
+				mEdit.width() + borderSize * 2), mEdit.type());
+
+		Imgproc.copyMakeBorder(mEdit, mEditBorder, borderSize, borderSize,
+				borderSize, borderSize, Imgproc.BORDER_CONSTANT, new Scalar(255,
+						255, 255));
+
+		Imgproc.goodFeaturesToTrack(mEditBorder, corners, maxCorners, qualityLevel,
+				minDistance, new Mat(), blockSize1, useHarrisDetector, k1);
+
 
 		// TODO trasformare in costanti (quando saranno definitive)
-		heightThresL = 0.5; // 50% of camera height
-		heightThresH = 0.9; // 80% of camera height
-		widthThresL = 0.1; // 10% of camera width
-		widthThresH = 0.8; // 80% of camera width
+		// heightThresL = 0.5; // 50% of camera height
+		// heightThresH = 0.9; // 80% of camera height
+		// widthThresL = 0.1; // 10% of camera width
+		// widthThresH = 0.8; // 80% of camera width
+		//
+		// dirThresL = 35;
+		// dirThresH = 80;
+		// parallelThres = 6;
+		//
+		// HWThresL = 2.0;
+		// HWThresH = 3.0;
+		//
+		// int cornersSize = corners.size();
+		// Door door = null;
+		//
+		// // For each point
+		// for (int i = 0; i < cornersSize; i++) {
+		// Point p1 = corners.get(i);
+		// // Consider each successive point
+		// for (int j = i + 1; j < cornersSize; j++) {
+		// Point p2 = corners.get(j);
+		//
+		// double siz12 = calcRelDistance(p1, p2);
+		// double dir12 = calcDirection(p1, p2);
+		//
+		// if (siz12 < heightThresL || dir12 < dirThresH)
+		// continue;
+		//
+		// // and so on with 3rd and 4th points
+		// // TODO sto considerando una porta DRITTA: valutare la
+		// // prospettiva
+		// for (int l = j + 1; l < cornersSize; l++) {
+		// Point p4 = corners.get(l);
+		//
+		// double siz41 = calcRelDistance(p1, p4);
+		// double dir41 = calcDirection(p1, p4);
+		//
+		// if (siz41 > widthThresH || dir41 > dirThresL)
+		// continue;
+		//
+		// for (int m = l + 1; m < cornersSize; m++) {
+		// Point p3 = corners.get(m);
+		//
+		// double siz23 = calcRelDistance(p2, p3);
+		// double dir23 = calcDirection(p2, p3);
+		// double siz34 = calcRelDistance(p3, p4);
+		// double dir34 = calcDirection(p3, p4);
+		//
+		// if (siz34 > heightThresL || siz23 < widthThresL
+		// || dir23 > dirThresL || dir34 < dirThresH
+		// || Math.abs(dir12 - dir34) > parallelThres)
+		// continue;
+		//
+		// double sizRatio = (siz12 + siz34) / (siz23 + siz34);
+		// if (sizRatio < HWThresL || sizRatio > HWThresH)
+		// continue;
+		//
+		// door = new Door(p1, p2, p3, p4);
+		// // if here, 1234 is a rectangle
+		// }
+		// }
+		// }
+		// }
+		//
 
-		dirThresL = 35;
-		dirThresH = 80;
-		parallelThres = 6;
+		
+//		Rect roi = new Rect(borderSize, borderSize, mEdit.width(), mEdit.height());
+//		mEdit = new Mat(mEditBorder, roi);
+//
+//		Imgproc.pyrUp(mEdit, mEdit, new Size(mRgba.width(), mRgba.height()));
 
-		HWThresL = 2.0;
-		HWThresH = 3.0;
-
-		int cornersSize = corners.size();
-		Door door = null;
-
-		// For each point
-		for (int i = 0; i < cornersSize; i++) {
-			Point p1 = corners.get(i);
-			// Consider each successive point
-			for (int j = i + 1; j < cornersSize; j++) {
-				Point p2 = corners.get(j);
-
-				double siz12 = calcRelDistance(p1, p2);
-				double dir12 = calcDirection(p1, p2);
-
-				if (siz12 < heightThresL || dir12 < dirThresH)
-					continue;
-
-				// and so on with 3rd and 4th points
-				// TODO sto considerando una porta DRITTA: valutare la
-				// prospettiva
-				for (int l = j + 1; l < cornersSize; l++) {
-					Point p4 = corners.get(l);
-
-					double siz41 = calcRelDistance(p1, p4);
-					double dir41 = calcDirection(p1, p4);
-
-					if (siz41 > widthThresH || dir41 > dirThresL)
-						continue;
-
-					for (int m = l + 1; m < cornersSize; m++) {
-						Point p3 = corners.get(m);
-
-						double siz23 = calcRelDistance(p2, p3);
-						double dir23 = calcDirection(p2, p3);
-						double siz34 = calcRelDistance(p3, p4);
-						double dir34 = calcDirection(p3, p4);
-
-						if (siz34 > heightThresL || siz23 < widthThresL
-								|| dir23 > dirThresL || dir34 < dirThresH
-								|| Math.abs(dir12 - dir34) > parallelThres)
-							continue;
-
-						double sizRatio = (siz12 + siz34) / (siz23 + siz34);
-						if (sizRatio < HWThresL || sizRatio > HWThresH)
-							continue;
-
-						door = new Door(p1, p2, p3, p4);
-						// if here, 1234 is a rectangle
-					}
-				}
-			}
-		}
+		// if (door != null) {
+		// Core.line(mRgba, door.getP1(), door.getP2(), new Scalar(0, 255, 0),
+		// 4);
+		// Core.line(mRgba, door.getP2(), door.getP3(), new Scalar(0, 255, 0),
+		// 4);
+		// Core.line(mRgba, door.getP3(), door.getP4(), new Scalar(0, 255, 0),
+		// 4);
+		// Core.line(mRgba, door.getP4(), door.getP1(), new Scalar(0, 255, 0),
+		// 4);
+		// }
 
 		// Draw Corners
-		for (Point c : corners) {
-			Core.circle(mRgba, c, 5, new Scalar(255, 0, 0), 2, 8, 0);
+		for (Point c : corners.toList()) {
+			Point temp = c.clone();
+			temp.x = 2*(temp.x-borderSize);
+			temp.y = 2*(temp.y-borderSize);
+			Core.circle(mRgba, temp, 5, new Scalar(255, 0, 0), 2, 8, 0);
 		}
-
-		if (door != null) {
-			Core.line(mRgba, door.getP1(), door.getP2(), new Scalar(0, 255, 0),
-					4);
-		}
-
+		
 		return mRgba;
 	}
 
