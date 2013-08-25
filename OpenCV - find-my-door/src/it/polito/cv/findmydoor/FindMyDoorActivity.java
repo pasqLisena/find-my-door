@@ -116,8 +116,8 @@ public class FindMyDoorActivity extends Activity implements
 		corners = new ArrayList<Point>();
 
 		imgDiag = Math.sqrt(Math.pow(height, 2) + Math.pow(width, 2));
-		Log.d(TAG, "HEIGHT:_"+height);
-		Log.d(TAG, "width:_"+width);
+		Log.d(TAG, "HEIGHT:_" + height);
+		Log.d(TAG, "width:_" + width);
 	}
 
 	public void onCameraViewStopped() {
@@ -129,7 +129,6 @@ public class FindMyDoorActivity extends Activity implements
 		mEdit = new Mat();
 		mDst = new Mat(mRgba.size(), CvType.CV_32FC1);
 		corners.clear();
-
 
 		// Smoothing
 		Size kSize = new Size(5, 5);
@@ -200,68 +199,33 @@ public class FindMyDoorActivity extends Activity implements
 		HWThresL = 2.0;
 		HWThresH = 3.0;
 
-		Door door = null;
+		List<Door> doors = new ArrayList<Door>();
 
 		// For each point
-		for (int i = 0; i < cornersSize; i++) {
+		point_loop: for (int i = 0; i < cornersSize; i++) {
 			Point p1 = cornersList.get(i);
 			// Consider each successive point
 			for (int j = i + 1; j < cornersSize; j++) {
 				Point p2 = cornersList.get(j);
 
-				double siz12 = calcRelDistance(p1, p2);
-				double dir12 = calcDirection(p1, p2);
-
-				if (siz12 < heightThresL || dir12 < dirThresH)
-					continue;
-				
 				// and so on with 3rd and 4th points
-				// TODO sto considerando una porta DRITTA: valutare la
-				// prospettiva
 				for (int l = j + 1; l < cornersSize; l++) {
-					Point p4 = cornersList.get(l);
-
-					double siz41 = calcRelDistance(p1, p4);
-					double dir41 = calcDirection(p1, p4);
-
-					if (siz41 > widthThresH || dir41 > dirThresL)
-						continue;
+					Point p3 = cornersList.get(l);
 
 					for (int m = l + 1; m < cornersSize; m++) {
-						Point p3 = cornersList.get(m);
+						Point p4 = cornersList.get(m);
 
-						double siz23 = calcRelDistance(p2, p3);
-						double dir23 = calcDirection(p2, p3);
-						double siz34 = calcRelDistance(p3, p4);
-						double dir34 = calcDirection(p3, p4);
-
-						if (siz34 > heightThresL || siz23 < widthThresL
-								|| dir23 > dirThresL || dir34 < dirThresH
-								|| Math.abs(dir12 - dir34) > parallelThres)
-							continue;
-
-
-						double sizRatio = (siz12 + siz34) / (siz23 + siz41);
-
-						if (sizRatio < HWThresL || sizRatio > HWThresH)
-							continue;
-
-						Log.d(TAG, "Door found!");
-						door = new Door(p1, p2, p3, p4);
-						// if here, 1234 is a rectangle
+						Door newDoor = doorDetect(p1, p2, p3, p4);
+						if (newDoor != null) {
+							Log.d(TAG, "Door found!");
+							doors.add(newDoor);
+						}
 					}
 				}
 			}
 		}
 
-		// FIXME probabilmente non serve più
-		// Rect roi = new Rect(borderSize, borderSize, mEdit.width(),
-		// mEdit.height());
-		// mEdit = new Mat(mEditBorder, roi);
-		//
-		// Imgproc.pyrUp(mEdit, mEdit, new Size(mRgba.width(), mRgba.height()));
-
-		if (door != null) {
+		for (Door door : doors) {
 			Core.line(mRgba, door.getP1(), door.getP2(), new Scalar(0, 255, 0),
 					4);
 			Core.line(mRgba, door.getP2(), door.getP3(), new Scalar(0, 255, 0),
@@ -275,9 +239,77 @@ public class FindMyDoorActivity extends Activity implements
 		// Draw Corners
 		for (Point c : cornersList) {
 			Core.circle(mRgba, c, 5, new Scalar(255, 0, 0), 2, 8, 0);
+			// Core.putText(mRgba, " "+cornersList.indexOf(c), c,
+			// Core.FONT_HERSHEY_PLAIN, 1.0, new Scalar(0,0,255));
 		}
 
 		return mRgba;
+	}
+
+	/*
+	 * Check if one of rectangles formed by points p1,p2,p3,p4 is a door. The
+	 * four point can be not in order.
+	 */
+	private Door doorDetect(Point p1, Point p2, Point p3, Point p4) {
+		if (checkIfDoor(p1, p2, p3, p4)) {
+			return new Door(p1, p2, p3, p4);
+		}
+
+		// commute long side points
+		if (checkIfDoor(p1, p3, p2, p4)) {
+			return new Door(p1, p3, p2, p4);
+		}
+
+		// commute short side points
+		if (checkIfDoor(p1, p3, p4, p2)) {
+			return new Door(p1, p3, p4, p2);
+		}
+
+		return null;
+	}
+
+	/*
+	 * Check if the rectangle p1-p2-p3-p4 is a door. The four point are in
+	 * order.
+	 */
+	private boolean checkIfDoor(Point p1, Point p2, Point p3, Point p4) {
+		double siz12 = calcRelDistance(p1, p2);
+		double siz41 = calcRelDistance(p1, p4);
+
+		if (siz12 < siz41) {
+			// commute the sides
+			return checkIfDoor(p2, p3, p4, p1);
+		}
+
+		if (siz12 < heightThresL || siz41 > widthThresH) {
+			return false;
+		}
+
+		double dir12 = calcDirection(p1, p2);
+		double dir41 = calcDirection(p1, p4);
+
+		if (dir12 < dirThresH || dir41 > dirThresL) {
+			return false;
+		}
+
+		double siz23 = calcRelDistance(p2, p3);
+		double dir23 = calcDirection(p2, p3);
+		double siz34 = calcRelDistance(p3, p4);
+		double dir34 = calcDirection(p3, p4);
+
+		if (siz34 > heightThresL || siz23 < widthThresL || dir23 > dirThresL
+				|| dir34 < dirThresH || Math.abs(dir12 - dir34) > parallelThres) {
+			return false;
+		}
+
+		double sizRatio = (siz12 + siz34) / (siz23 + siz41);
+
+		if (sizRatio < HWThresL || sizRatio > HWThresH) {
+			return false;
+		}
+
+		// if here, 1234 is a door
+		return true;
 	}
 
 	/*
@@ -295,7 +327,7 @@ public class FindMyDoorActivity extends Activity implements
 		double dfX = Math.abs(i.x - j.x);
 		double dfY = Math.abs(i.y - j.y);
 		double dfRatio = dfX / dfY;
-		return Math.atan(dfRatio)* 180 / Math.PI;
+		return Math.atan(dfRatio) * 180 / Math.PI;
 	}
 
 }
