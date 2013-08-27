@@ -14,6 +14,7 @@ import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.Point;
+import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
@@ -31,7 +32,12 @@ public class FindMyDoorActivity extends Activity implements
 	private Mat mRgba;
 	private Mat mEdit;
 	private List<Point> corners;
+
 	private Size imgSize;
+	private double imgDiag;
+
+	private static final Size dsSize = new Size(320, 240);
+	private static final double dsDiag = 400;
 
 	double heightThresL, heightThresH, widthThresL, widthThresH;
 	int dirThresL, dirThresH, parallelThres;
@@ -57,7 +63,7 @@ public class FindMyDoorActivity extends Activity implements
 		}
 	};
 
-	private double imgDiag;
+	private double dsRatio;
 
 	public FindMyDoorActivity() {
 		Log.i(TAG, "Instantiated new " + this.getClass());
@@ -99,10 +105,13 @@ public class FindMyDoorActivity extends Activity implements
 
 	public void onCameraViewStarted(int width, int height) {
 		imgSize = new Size(width, height);
+		imgDiag = Math.sqrt(Math.pow(height, 2) + Math.pow(width, 2));
+
+		dsRatio = imgDiag/dsDiag;
+
 		mRgba = new Mat(imgSize, CvType.CV_8UC4);
 		corners = new ArrayList<Point>();
 
-		imgDiag = Math.sqrt(Math.pow(height, 2) + Math.pow(width, 2));
 		Log.d(TAG, "width: " + height);
 		Log.d(TAG, "width: " + width);
 	}
@@ -122,11 +131,7 @@ public class FindMyDoorActivity extends Activity implements
 		Imgproc.GaussianBlur(mRgba, mEdit, kSize, sigmaX, sigmaY);
 
 		// Down-sampling
-		// TODO trasformare in down-sampling con size fissa
-		int dsRatio = 2;
-		int newHeight = mRgba.height() / dsRatio;
-		int newWidth = mRgba.width() / dsRatio;
-		Imgproc.pyrDown(mEdit, mEdit, new Size(newWidth, newHeight));
+		Imgproc.pyrDown(mEdit, mEdit, dsSize);
 
 		// Detecting edge
 		int lowThres = 70, upThres = 80;
@@ -165,16 +170,13 @@ public class FindMyDoorActivity extends Activity implements
 				qualityLevel, minDistance, new Mat(), blockSize1,
 				useHarrisDetector, k1);
 
-		// Reset points position (with no border and down-sampling)
 		List<Point> cornersList = corners.toList();
 		int cornersSize = cornersList.size();
+		// Reset points position (with no border)
 		for (Point c : cornersList) {
-			c.x = dsRatio * (c.x - borderSize);
-			c.y = dsRatio * (c.y - borderSize);
+			c.x = (c.x - borderSize);
+			c.y = (c.y - borderSize);
 		}
-
-		// Up-sampling mEdit (edge image)
-		Imgproc.pyrUp(mEdit, mEdit, imgSize);
 
 		// TODO trasformare in costanti (quando saranno definitive)
 		heightThresL = 0.5; // 50% of camera height
@@ -192,7 +194,7 @@ public class FindMyDoorActivity extends Activity implements
 		List<Door> doors = new ArrayList<Door>();
 
 		// For each point
-		point_loop: for (int i = 0; i < cornersSize; i++) {
+		for (int i = 0; i < cornersSize; i++) {
 			Point p1 = cornersList.get(i);
 			// Consider each successive point
 			for (int j = i + 1; j < cornersSize; j++) {
@@ -216,17 +218,26 @@ public class FindMyDoorActivity extends Activity implements
 		}
 
 		for (Door door : doors) {
-			drawDoor(mRgba, door);
+			drawDoor(mEdit, door);
 		}
+
+		// down-sampling points position
+		for (Point c : cornersList) {
+			c.x = dsRatio * (c.x);
+			c.y = dsRatio * (c.y);
+		}
+
+		// Up-sampling mEdit (edge image)
+		Imgproc.pyrUp(mEdit, mEdit, imgSize);
 
 		// Draw Corners
 		for (Point c : cornersList) {
-			Core.circle(mRgba, c, 5, new Scalar(255, 0, 0), 2, 8, 0);
+			Core.circle(mEdit, c, 5, new Scalar(255, 0, 0), 2, 8, 0);
 			// Core.putText(mRgba, " "+cornersList.indexOf(c), c,
 			// Core.FONT_HERSHEY_PLAIN, 1.0, new Scalar(0,0,255));
 		}
 
-		return mRgba;
+		return mEdit;
 	}
 
 	private void drawDoor(Mat image, Door door) {
@@ -265,6 +276,7 @@ public class FindMyDoorActivity extends Activity implements
 			if (FR12 < FRThresL) {
 				return null;
 			}
+			Log.d(TAG, "fill ratio 12: " + FR12);
 
 			double FR23 = calculateFillRatio(detectedDoor.getP2(),
 					detectedDoor.getP3());
@@ -272,7 +284,7 @@ public class FindMyDoorActivity extends Activity implements
 			if (FR23 < FRThresL) {
 				return null;
 			}
-			
+
 			double FR34 = calculateFillRatio(detectedDoor.getP3(),
 					detectedDoor.getP4());
 
@@ -288,7 +300,7 @@ public class FindMyDoorActivity extends Activity implements
 				return null;
 			}
 
-			double avgFR = (FR12 + FR23 + FR34 + FR41)/4;
+			double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
 			if (avgFR < FRThresH)
 				return null;
 
@@ -298,25 +310,52 @@ public class FindMyDoorActivity extends Activity implements
 	}
 
 	private double calculateFillRatio(Point pA, Point pB) {
-		Mat detectedSides = Mat.zeros(imgSize, CvType.CV_32FC1);
+		Mat detectedSides = Mat.zeros(mEdit.height(), mEdit.width(),
+				CvType.CV_32FC1);
 
 		Scalar white = new Scalar(255, 255, 255);
-		Core.line(detectedSides, pA, pB, white, 4);
+		Core.line(detectedSides, pA, pB, white, 3);
 
-		int overLapAB = 0;
-		for (int i = (int) Math.min(pA.y, pB.y); i < Math.max(pA.y, pB.y); i++) {
-			for (int j = (int) Math.min(pA.x, pB.x); j < Math.max(pA.x, pB.x); j++) {
-				double PixToCompare = detectedSides.get(i, j)[0];
-				if (PixToCompare > 0 && PixToCompare != mEdit.get(i, j)[0]) {
+		int overLapAB = 0, lenghtAb = 0;
+
+		double PixToCompare = 0, oldPixToCompare;
+
+		Size roiSize = new Size(Math.abs(pA.x - pB.x), Math.abs(pA.y - pB.y));
+
+		Rect roi = new Rect(new Point(Math.min(pA.x, pB.x),
+				Math.min(pA.y, pB.y)), roiSize);
+
+
+		Mat dectLine = detectedSides.submat(roi);
+
+		Mat editCrop = mEdit.submat(roi);
+
+		for (int i = 0; i < roiSize.width; i++) {
+			for (int j = 0; j < roiSize.height; j++) {
+
+				oldPixToCompare = PixToCompare;
+				PixToCompare = dectLine.get(j, i)[0];
+				if (PixToCompare == 0) {
+					if (oldPixToCompare != 0) // ho già passato il bordo
+						break;
+					else
+						continue;
+				}
+				lenghtAb++;
+				if (PixToCompare == editCrop.get(j, i)[0]) {
 					overLapAB++;
 				}
 			}
 		}
-		
-		if(overLapAB == 0)
-			return 0;
 
-		return overLapAB / calcDistance(pA, pB);
+		dectLine.release();
+		editCrop.release();
+
+		if (overLapAB == 0) {
+			return 0;
+		}
+
+		return ((double) overLapAB / lenghtAb);
 	}
 
 	/*
