@@ -67,6 +67,8 @@ public class FindMyDoorActivity extends Activity implements
 
 	private double dsRatio;
 
+	private boolean willResize;
+
 	public FindMyDoorActivity() {
 		Log.i(TAG, "Instantiated new " + this.getClass());
 	}
@@ -108,7 +110,7 @@ public class FindMyDoorActivity extends Activity implements
 	public void onCameraViewStarted(int width, int height) {
 		imgSize = new Size(width, height);
 		imgDiag = Math.sqrt(Math.pow(height, 2) + Math.pow(width, 2));
-
+		willResize = dsSize.equals(imgSize);
 		dsRatio = imgDiag / dsDiag;
 
 		mRgba = new Mat(imgSize, CvType.CV_8UC4);
@@ -141,7 +143,9 @@ public class FindMyDoorActivity extends Activity implements
 		Imgproc.GaussianBlur(mRgba, mEdit, kSize, sigmaX, sigmaY);
 
 		// Down-sampling
-		Imgproc.pyrDown(mEdit, mEdit, dsSize);
+		if (willResize) {
+			Imgproc.pyrDown(mEdit, mEdit, dsSize);
+		}
 
 		// Detecting edge
 		int lowThres = 70, upThres = 80;
@@ -159,8 +163,8 @@ public class FindMyDoorActivity extends Activity implements
 			maxCorners = 1;
 		}
 
-		double qualityLevel = 0.09;
-		double minDistance = 30;
+		double qualityLevel = 0.05;
+		double minDistance = 50;
 		int blockSize1 = 5;
 		boolean useHarrisDetector = false;
 		double k1 = 0.04;
@@ -241,14 +245,16 @@ public class FindMyDoorActivity extends Activity implements
 			drawDoor(mEdit, door);
 		}
 
-		// down-sampling points position
-		for (Point c : cornersList) {
-			c.x = dsRatio * (c.x);
-			c.y = dsRatio * (c.y);
-		}
-
 		// Up-sampling mEdit (edge image)
-		Imgproc.pyrUp(mEdit, mEdit, imgSize);
+		if(willResize){
+			// down-sampling points position
+			for (Point c : cornersList) {
+				c.x = dsRatio * (c.x);
+				c.y = dsRatio * (c.y);
+			}
+
+			Imgproc.pyrUp(mEdit, mEdit, imgSize);
+		}
 
 		// Draw Corners
 		for (Point c : cornersList) {
@@ -376,9 +382,12 @@ public class FindMyDoorActivity extends Activity implements
 		if (overLapAB == 0) {
 			return 0;
 		}
-		Log.w(TAG, "overLap :" + (double) overLapAB / lenghtAb);
+		
+		double fillRatio = (double) overLapAB / (lenghtAb / thickness);
+		
+		Log.w(TAG, "overLap :" + fillRatio);
 
-		return ((double) overLapAB / (lenghtAb / thickness));
+		return fillRatio;
 	}
 
 	/*
