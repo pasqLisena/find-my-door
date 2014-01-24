@@ -24,15 +24,19 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Display;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.View.OnTouchListener;
 import android.view.Window;
 import android.view.WindowManager;
 
 public class FindMyDoorActivity extends Activity implements
-		CvCameraViewListener2 {
+		CvCameraViewListener2, OnTouchListener {
 	private static final String TAG = "OCV::Activity";
 
 	private Mat mRgba; // immagine originale
-	private Mat mEdit; // immagine originale
+	private Mat mEdit; // immagine modificata (canny)
+	private Mat mReturn; // puntatore all'immagine da visualizzare
 	private List<Point> corners;
 
 	private Size imgSize;
@@ -40,6 +44,8 @@ public class FindMyDoorActivity extends Activity implements
 
 	private static final Size dsSize = new Size(320, 240); // dimensione finale
 	private static final double dsDiag = 400;
+
+	private static boolean freeze;
 
 	double heightThresL, heightThresH, widthThresL, widthThresH;
 	int dirThresL, dirThresH, parallelThres;
@@ -54,7 +60,7 @@ public class FindMyDoorActivity extends Activity implements
 			case LoaderCallbackInterface.SUCCESS: {
 				Log.i(TAG, "OpenCV loaded successfully");
 				mOpenCvCameraView.enableView();
-				// mOpenCvCameraView.setOnTouchListener(FindMyDoorActivity.this);
+				mOpenCvCameraView.setOnTouchListener(FindMyDoorActivity.this);
 			}
 				break;
 			default: {
@@ -68,6 +74,10 @@ public class FindMyDoorActivity extends Activity implements
 	private double dsRatio;
 
 	private boolean willResize;
+
+	private List<Door> doors;
+
+	private List<Point> cornersList;
 
 	public FindMyDoorActivity() {
 		Log.i(TAG, "Instantiated new " + this.getClass());
@@ -110,14 +120,17 @@ public class FindMyDoorActivity extends Activity implements
 	public void onCameraViewStarted(int width, int height) {
 		imgSize = new Size(width, height);
 		imgDiag = Math.sqrt(Math.pow(height, 2) + Math.pow(width, 2));
-		willResize = dsSize.equals(imgSize);
+		willResize = !dsSize.equals(imgSize);
+		Log.i(TAG, "size: " + imgSize.width + " x " + imgSize.height);
 		dsRatio = imgDiag / dsDiag;
 
 		mRgba = new Mat(imgSize, CvType.CV_8UC4);
+		mReturn = mRgba;
 		corners = new ArrayList<Point>();
 
 		Log.d(TAG, "width: " + height);
 		Log.d(TAG, "width: " + width);
+		freeze = false;
 	}
 
 	public void onCameraViewStopped() {
@@ -125,8 +138,14 @@ public class FindMyDoorActivity extends Activity implements
 	}
 
 	public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
+		if (freeze) {
+			Core.putText(mReturn, " FREEZED ", new Point(10, 10),
+					Core.FONT_HERSHEY_PLAIN, 1.0, new Scalar(0, 0, 255));
+			return mReturn;
+		}
 		mRgba = inputFrame.rgba();
 		mEdit = new Mat();
+		mReturn = mEdit;
 		corners.clear();
 
 		// prova cattura resScreen
@@ -144,12 +163,13 @@ public class FindMyDoorActivity extends Activity implements
 
 		// Down-sampling
 		if (willResize) {
-			Imgproc.pyrDown(mEdit, mEdit, dsSize);
+			Log.i(TAG, "Rezize");
+			Imgproc.resize(mEdit, mEdit, dsSize);
 		}
 
 		// Detecting edge
 		int lowThres = 70, upThres = 80;
-		Imgproc.Canny(mEdit, mEdit, lowThres, upThres, 3, true);
+		Imgproc.Canny(mEdit, mEdit, lowThres, upThres, 3, false);
 
 		// Harris Detector parameters
 		int blockSize = 5;
@@ -163,8 +183,8 @@ public class FindMyDoorActivity extends Activity implements
 			maxCorners = 1;
 		}
 
-		double qualityLevel = 0.05;
-		double minDistance = 50;
+		double qualityLevel = 0.01;
+		double minDistance = 40;
 		int blockSize1 = 5;
 		boolean useHarrisDetector = false;
 		double k1 = 0.04;
@@ -184,7 +204,7 @@ public class FindMyDoorActivity extends Activity implements
 				qualityLevel, minDistance, new Mat(), blockSize1,
 				useHarrisDetector, k1);
 
-		List<Point> cornersList = corners.toList();
+		cornersList = corners.toList();
 		int cornersSize = cornersList.size();
 		// Reset points position (with no border)
 		for (Point c : cornersList) {
@@ -203,19 +223,22 @@ public class FindMyDoorActivity extends Activity implements
 		}
 
 		// TODO trasformare in costanti (quando saranno definitive)
-		heightThresL = 0.5; // 50% of camera height
-		heightThresH = 0.8; // 80% of camera height
-		widthThresL = 0.1; // 10% of camera width
-		widthThresH = 0.8; // 80% of camera width
+		heightThresL = 0.3; // 50% of camera diag
+		heightThresH = 0.6; // 80% of camera diag
+		widthThresL = 0.1; // 10% of camera diag
+		widthThresH = 0.8; // 80% of camera diag
 
-		dirThresL = 35;
+		dirThresL = 40;
 		dirThresH = 80;
-		parallelThres = 6;
+		parallelThres = 3;
+
+		// HWThresL = 1.2;
+		// HWThresH = 2.4;
 
 		HWThresL = 2.0;
 		HWThresH = 3.0;
 
-		List<Door> doors = new ArrayList<Door>();
+		doors = new ArrayList<Door>();
 
 		// For each point
 		for (int i = 0; i < cornersSize; i++) {
@@ -241,29 +264,34 @@ public class FindMyDoorActivity extends Activity implements
 			}
 		}
 
-		for (Door door : doors) {
-			drawDoor(mEdit, door);
-		}
-
 		// Up-sampling mEdit (edge image)
-		if(willResize){
+		if (willResize) {
 			// down-sampling points position
 			for (Point c : cornersList) {
 				c.x = dsRatio * (c.x);
 				c.y = dsRatio * (c.y);
 			}
 
-			Imgproc.pyrUp(mEdit, mEdit, imgSize);
+			Imgproc.resize(mEdit, mEdit, imgSize);
+		}
+
+		return printMat(mReturn);
+	}
+
+	private Mat printMat(Mat img) {
+		Imgproc.cvtColor(img, img, Imgproc.COLOR_GRAY2RGBA);
+		for (Door door : doors) {
+			drawDoor(img, door);
 		}
 
 		// Draw Corners
 		for (Point c : cornersList) {
-			Core.circle(mEdit, c, 15, new Scalar(255, 0, 0), 2, 8, 0);
+			Core.circle(img, c, 15, new Scalar(255, 0, 0), 2, 8, 0);
 			// Core.putText(mRgba, " "+cornersList.indexOf(c), c,
 			// Core.FONT_HERSHEY_PLAIN, 1.0, new Scalar(0,0,255));
 		}
 
-		return mEdit;
+		return img;
 	}
 
 	private void drawDoor(Mat image, Door door) {
@@ -285,16 +313,16 @@ public class FindMyDoorActivity extends Activity implements
 			detectedDoor = new Door(p1, p2, p3, p4);
 		} else if (checkIfDoor(p1, p3, p2, p4)) {
 			// commute long side points
-
 			detectedDoor = new Door(p1, p3, p2, p4);
-		} else if (checkIfDoor(p1, p3, p4, p2)) {
+		} else if (checkIfDoor(p1, p2, p4, p3)) {
 			// commute short side points
-			detectedDoor = new Door(p1, p3, p4, p2);
+			detectedDoor = new Door(p1, p2, p4, p3);
 		}
 
-		if (detectedDoor != null) {
+		// TODO rimuovi il true
+		if (true && detectedDoor != null) {
 			// TODO trasformare in costanti
-			double FRThresL = 0.6, FRThresH = 0.85;
+			double FRThresL = 0.45, FRThresH = 0.6;
 
 			// Compare with edge img
 			double FR12 = calculateFillRatio(detectedDoor.getP1(),
@@ -382,10 +410,12 @@ public class FindMyDoorActivity extends Activity implements
 		if (overLapAB == 0) {
 			return 0;
 		}
-		
+
 		double fillRatio = (double) overLapAB / (lenghtAb / thickness);
-		
-		Log.w(TAG, "overLap :" + fillRatio);
+		if (fillRatio > 0.3) {
+			Log.w(TAG, "overLap :" + fillRatio);
+			// Core.line(mRgba, pA, pB, white, 4);
+		}
 
 		return fillRatio;
 	}
@@ -455,10 +485,16 @@ public class FindMyDoorActivity extends Activity implements
 	}
 
 	private double calcDirection(Point i, Point j) {
-		double dfX = Math.abs(i.x - j.x);
-		double dfY = Math.abs(i.y - j.y);
-		double dfRatio = dfX / dfY;
+		double dfX = i.x - j.x;
+		double dfY = i.y - j.y;
+		double dfRatio = Math.abs(dfX / dfY);
 		return Math.atan(dfRatio) * 180 / Math.PI;
+	}
+
+	@Override
+	public boolean onTouch(View v, MotionEvent event) {
+		freeze = !freeze;
+		return false;
 	}
 
 }
