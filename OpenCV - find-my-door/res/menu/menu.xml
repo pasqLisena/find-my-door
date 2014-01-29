@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <item
+        android:id="@+id/more_canny"
+        android:title="@string/more_canny"/>
+    <item
+        android:id="@+id/less_canny"
+        android:title="@string/less_canny"/>
+    <item
+        android:id="@+id/incr_divarious_canny"
+        android:title="@string/incr_divarious_canny"/>
+    
+</menu>

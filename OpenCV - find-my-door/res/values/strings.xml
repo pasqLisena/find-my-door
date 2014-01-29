@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Find My Door</string>
+    <string name="menu">Menu</string>
+    <string name="more_canny">Canny +</string>
+    <string name="less_canny">Canny -</string>
+    <string name="incr_divarious_canny">Canny W</string>
 </resources>

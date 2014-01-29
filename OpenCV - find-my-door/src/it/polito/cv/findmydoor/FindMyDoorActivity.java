@@ -24,6 +24,9 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Display;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnTouchListener;
@@ -33,6 +36,8 @@ import android.view.WindowManager;
 public class FindMyDoorActivity extends Activity implements
 		CvCameraViewListener2, OnTouchListener {
 	private static final String TAG = "OCV::Activity";
+	private static final String TAG_CANNY = "OCV::Activity CANNY";
+
 
 	private Mat mRgba; // immagine originale
 	private Mat mEdit; // immagine modificata (canny)
@@ -45,11 +50,14 @@ public class FindMyDoorActivity extends Activity implements
 	private static final Size dsSize = new Size(320, 240); // dimensione finale
 	private static final double dsDiag = 400;
 
+
 	private static boolean freeze;
 
 	double heightThresL, heightThresH, widthThresL, widthThresH;
 	int dirThresL, dirThresH, parallelThres;
 	double HWThresL, HWThresH;
+
+	private int cannyLowThres = 70, cannyUpThres = 120;
 
 	private CameraBridgeViewBase mOpenCvCameraView; // collegamento alla camera
 
@@ -95,6 +103,56 @@ public class FindMyDoorActivity extends Activity implements
 
 		mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.find_my_door_activity_surface_view);
 		mOpenCvCameraView.setCvCameraViewListener(this);
+	}
+
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		super.onCreateOptionsMenu(menu);
+		MenuInflater inflater = getMenuInflater();
+		inflater.inflate(R.menu.menu, menu);
+		return true;
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		// Handle item selection
+		switch (item.getItemId()) {
+		case R.id.more_canny:
+			increaseCanny();
+			return true;
+		case R.id.less_canny:
+			decreaseCanny();
+			return true;
+		case R.id.incr_divarious_canny:
+			incrDivariousCanny();
+			return true;
+		default:
+			return super.onOptionsItemSelected(item);
+		}
+	}
+
+	private void incrDivariousCanny() {
+		int decr = 10;
+		if (cannyLowThres >= decr) {
+			cannyUpThres += decr;
+			cannyLowThres -= decr;
+		}
+	}
+
+	private void decreaseCanny() {
+		int decr = 20;
+		if (cannyUpThres >= decr && cannyLowThres >= decr) {
+			cannyUpThres -= decr;
+			cannyLowThres -= decr;
+		}
+		Log.d(TAG_CANNY, "Canny Thres changed in: "+cannyLowThres);
+	}
+
+	private void increaseCanny() {
+		int incr = 20;
+		cannyUpThres += incr;
+		cannyLowThres += incr;
+		Log.d(TAG_CANNY, "Canny Thres changed in: "+cannyLowThres);
 	}
 
 	@Override
@@ -151,9 +209,9 @@ public class FindMyDoorActivity extends Activity implements
 		// prova cattura resScreen
 		Display display = getWindowManager().getDefaultDisplay();
 		android.graphics.Point size = new android.graphics.Point();
-		display.getSize(size);
-		int wScreen = size.x;
-		int hScreen = size.y;
+//		display.getSize(size);
+//		int wScreen = size.x;
+//		int hScreen = size.y;
 		// final Size dsSize = new Size(wScreen, hScreen);
 
 		// Smoothing
@@ -163,13 +221,11 @@ public class FindMyDoorActivity extends Activity implements
 
 		// Down-sampling
 		if (willResize) {
-			Log.i(TAG, "Rezize");
 			Imgproc.resize(mEdit, mEdit, dsSize);
 		}
 
 		// Detecting edge
-		int lowThres = 70, upThres = 80;
-		Imgproc.Canny(mEdit, mEdit, lowThres, upThres, 3, false);
+		Imgproc.Canny(mEdit, mEdit, cannyLowThres, cannyUpThres, 3, false);
 
 		// Harris Detector parameters
 		int blockSize = 5;
@@ -309,12 +365,12 @@ public class FindMyDoorActivity extends Activity implements
 	private Door doorDetect(Point p1, Point p2, Point p3, Point p4) {
 		Door detectedDoor = null;
 
-		if (checkIfDoor(p1, p2, p3, p4)) {
+		if (checkGeometry(p1, p2, p3, p4)) {
 			detectedDoor = new Door(p1, p2, p3, p4);
-		} else if (checkIfDoor(p1, p3, p2, p4)) {
+		} else if (checkGeometry(p1, p3, p2, p4)) {
 			// commute long side points
 			detectedDoor = new Door(p1, p3, p2, p4);
-		} else if (checkIfDoor(p1, p2, p4, p3)) {
+		} else if (checkGeometry(p1, p2, p4, p3)) {
 			// commute short side points
 			detectedDoor = new Door(p1, p2, p4, p3);
 		}
@@ -322,7 +378,7 @@ public class FindMyDoorActivity extends Activity implements
 		// TODO rimuovi il true
 		if (true && detectedDoor != null) {
 			// TODO trasformare in costanti
-			double FRThresL = 0.45, FRThresH = 0.6;
+			double FRThresL = 0.3, FRThresH = 0.4;
 
 			// Compare with edge img
 			double FR12 = calculateFillRatio(detectedDoor.getP1(),
@@ -414,7 +470,7 @@ public class FindMyDoorActivity extends Activity implements
 		double fillRatio = (double) overLapAB / (lenghtAb / thickness);
 		if (fillRatio > 0.3) {
 			Log.w(TAG, "overLap :" + fillRatio);
-			// Core.line(mRgba, pA, pB, white, 4);
+			Core.line(mReturn, pA, pB, white, 4);
 		}
 
 		return fillRatio;
@@ -424,13 +480,13 @@ public class FindMyDoorActivity extends Activity implements
 	 * Check if the rectangle p1-p2-p3-p4 is a door. The four point are in
 	 * order.
 	 */
-	private boolean checkIfDoor(Point p1, Point p2, Point p3, Point p4) {
+	private boolean checkGeometry(Point p1, Point p2, Point p3, Point p4) {
 		double siz12 = calcRelDistance(p1, p2);
 		double siz41 = calcRelDistance(p1, p4);
 
 		if (siz12 < siz41) {
 			// commute the sides
-			return checkIfDoor(p2, p3, p4, p1);
+			return checkGeometry(p2, p3, p4, p1);
 		}
 
 		if (siz12 < heightThresL || siz41 > widthThresH) {
