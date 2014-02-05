@@ -12,6 +12,7 @@ public class Door implements Comparable<Door> {
 
 	private Point p1, p2, p3, p4;
 	private double avgFillRatio;
+	private double geomRate;// punteggio calcolato sui controlli geometrici
 
 	public Door(Point p1, Point p2, Point p3, Point p4) {
 		this.p1 = p1;
@@ -61,17 +62,21 @@ public class Door implements Comparable<Door> {
 		return p4;
 	}
 
-	public double getAvgFillRatio() {
-		return avgFillRatio;
-	}
-
 	public void setAvgFillRatio(double avgFillRatio) {
 		this.avgFillRatio = avgFillRatio;
 	}
 
 	@Override
 	public int compareTo(Door another) {
-		return (int) (100 * (this.avgFillRatio - another.getAvgFillRatio()));
+		// pesi per la composizione del rate totale
+		int fillW = 100, geomW = 200;
+		// diminuisco fillW del parametro thickness dell'activity 
+		// TODO: sistemare
+		fillW /= 5;
+
+		int rate = (int) (fillW * (this.avgFillRatio - another.avgFillRatio) + geomW
+				* (this.geomRate - another.geomRate));
+		return rate;
 	}
 
 	/*
@@ -95,14 +100,18 @@ public class Door implements Comparable<Door> {
 			siz12 = calcRelDistance(p1, p2);
 		}
 
-		if (siz12 < Measure.heightThresL || siz41 > Measure.widthThresH) {
+		double cSize12 = siz12 - Measure.heightThresL;
+		double cSize41 = siz41 - Measure.widthThresH;
+		if (cSize12 < 0 || cSize41 > 0) {
 			return false;
 		}
 
 		double dir12 = calcDirection(p1, p2);
 		double dir41 = calcDirection(p1, p4);
 
-		if (dir12 < Measure.dirThresH || dir41 > Measure.dirThresL) {
+		double cDir12 = dir12 - Measure.dirThresH;
+		double cDir41 = dir41 - Measure.dirThresL;
+		if (cDir12 < 0 || cDir41 > 0) {
 			return false;
 		}
 
@@ -111,17 +120,37 @@ public class Door implements Comparable<Door> {
 		double siz34 = calcRelDistance(p3, p4);
 		double dir34 = calcDirection(p3, p4);
 
-		if (siz34 < Measure.heightThresL || siz23 < Measure.widthThresL
-				|| dir23 > Measure.dirThresL || dir34 < Measure.dirThresH
-				|| Math.abs(dir12 - dir34) > Measure.parallelThres) {
+		double cSiz34 = siz34 - Measure.heightThresH;
+		double cSiz23 = siz23 - Measure.widthThresL;
+		double cDir23 = dir23 - Measure.dirThresL;
+		double cDir34 = dir34 - Measure.dirThresH;
+		double cParal = Math.abs(dir12 - dir34) - Measure.parallelThres;
+
+		if (cSiz34 > 0 || cSiz23 < 0 || cDir23 > 0 || cDir34 < 0 || cParal > 0) {
 			return false;
 		}
 
 		double sizRatio = (siz12 + siz34) / (siz23 + siz41);
+		double cSRatioDown = sizRatio - Measure.HWThresL;
+		double cSRatioUp = sizRatio - Measure.HWThresH;
 
-		if (sizRatio < Measure.HWThresL || sizRatio > Measure.HWThresH) {
+		if (cSRatioDown < 0 || cSRatioUp > 0) {
 			return false;
 		}
+
+		// pesi per comporre il geomRate
+		double sizeW = 1, dirW = 2;
+
+		// normalizzazioni per num di elementi
+		sizeW /= 6;
+		dirW /= 5;
+
+		// normalizzazioni per range
+		sizeW /= 1; // (0, 1]
+		dirW /= 90; // (0, 90]
+
+		geomRate = (cSize12 - cSize41 - cSiz34 + cSiz23 + cSRatioDown - cSRatioUp)
+				* sizeW + (cDir12 - cDir41 - cDir23 + cDir34 - cParal) * dirW;
 
 		// if here, 1234 is a door
 		return true;

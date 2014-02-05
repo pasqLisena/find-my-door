@@ -3,7 +3,8 @@ package it.polito.cv.findmydoor;
 import org.opencv.core.Size;
 
 public class Measure {
-	// IMAGE
+	
+	/************ IMAGE *******************/
 	
 	// Dimensioni immagine di lavoro
 	public static final Size dsSize = new Size(320, 240); // dimensione finale
@@ -18,8 +19,8 @@ public class Measure {
 	public static int apertureSize = 3; // This must be odd
 
 	
-	// CORNERS DETECTION
-	
+	/************ CORNERS DETECTION *******************/
+
 	// Parametri Shi Tomasi
 	public static int maxCorners = 50;
 	public static double qualityLevel = 0.2;
@@ -29,7 +30,7 @@ public class Measure {
 	public static double k1 = 0.04;
 
 	
-	// DOOR DETECTION
+	/************ DOORS DETECTION *******************/
 	
 	// Parametri geometrici
 	public static double heightThresL = 0.3; // 50% of camera diag
