@@ -34,13 +34,8 @@ public class Door implements Comparable<Door> {
 				this.p3 = p4;
 				this.p4 = p3;
 
-				if (!checkGeometry()) {
-					Log.d(TAG, "FAIL **");
-
+				if (!checkGeometry()) 
 					throw noDoorException;
-				}
-
-				Log.d(TAG, "OOOOOOOOOOOOOOOOOOOK");
 
 			}
 		}
@@ -147,7 +142,7 @@ public class Door implements Comparable<Door> {
 
 		// normalizzazioni per range
 		sizeW /= 1; // (0, 1]
-		dirW /= 90; // (0, 90]
+		dirW /= 90; // [0, 90]
 
 		geomRate = (cSize12 - cSize41 - cSiz34 + cSiz23 + cSRatioDown - cSRatioUp)
 				* sizeW + (cDir12 - cDir41 - cDir23 + cDir34 - cParal) * dirW;
