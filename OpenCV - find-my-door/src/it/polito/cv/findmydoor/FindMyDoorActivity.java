@@ -1,6 +1,8 @@
 package it.polito.cv.findmydoor;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Vector;
 
@@ -38,7 +40,6 @@ public class FindMyDoorActivity extends Activity implements
 	private static final String TAG = "OCV::Activity";
 	private static final String TAG_CANNY = "OCV::Activity CANNY";
 
-
 	private Mat mRgba; // immagine originale
 	private Mat mEdit; // immagine modificata (canny)
 	private Mat mReturn; // puntatore all'immagine da visualizzare
@@ -49,7 +50,6 @@ public class FindMyDoorActivity extends Activity implements
 
 	private static final Size dsSize = new Size(320, 240); // dimensione finale
 	private static final double dsDiag = 400;
-
 
 	private static boolean freeze;
 
@@ -86,6 +86,7 @@ public class FindMyDoorActivity extends Activity implements
 	private List<Door> doors;
 
 	private List<Point> cornersList;
+	private double FRThresL = 0.4, FRThresH = 0.9;
 
 	public FindMyDoorActivity() {
 		Log.i(TAG, "Instantiated new " + this.getClass());
@@ -126,8 +127,29 @@ public class FindMyDoorActivity extends Activity implements
 		case R.id.incr_divarious_canny:
 			incrDivariousCanny();
 			return true;
+		case R.id.incr_fr:
+			incrFR();
+			return true;
+		case R.id.decr_fr:
+			decrFR();
+			return true;
 		default:
 			return super.onOptionsItemSelected(item);
+		}
+	}
+
+	private void incrFR() {
+		double incr = 0.5;
+		FRThresL += incr;
+		FRThresH += incr;
+		Log.e(TAG, "Soglia FR: " + FRThresH);
+	}
+
+	private void decrFR() {
+		double decr = -0.5;
+		if (FRThresL >= decr) {
+			FRThresL += decr;
+			FRThresH += decr;
 		}
 	}
 
@@ -145,14 +167,14 @@ public class FindMyDoorActivity extends Activity implements
 			cannyUpThres -= decr;
 			cannyLowThres -= decr;
 		}
-		Log.d(TAG_CANNY, "Canny Thres changed in: "+cannyLowThres);
+		Log.d(TAG_CANNY, "Canny Thres changed in: " + cannyLowThres);
 	}
 
 	private void increaseCanny() {
 		int incr = 20;
 		cannyUpThres += incr;
 		cannyLowThres += incr;
-		Log.d(TAG_CANNY, "Canny Thres changed in: "+cannyLowThres);
+		Log.d(TAG_CANNY, "Canny Thres changed in: " + cannyLowThres);
 	}
 
 	@Override
@@ -183,7 +205,7 @@ public class FindMyDoorActivity extends Activity implements
 		dsRatio = imgDiag / dsDiag;
 
 		mRgba = new Mat(imgSize, CvType.CV_8UC4);
-		mReturn = mRgba;
+		mReturn = mEdit;
 		corners = new ArrayList<Point>();
 
 		Log.d(TAG, "width: " + height);
@@ -209,9 +231,9 @@ public class FindMyDoorActivity extends Activity implements
 		// prova cattura resScreen
 		Display display = getWindowManager().getDefaultDisplay();
 		android.graphics.Point size = new android.graphics.Point();
-//		display.getSize(size);
-//		int wScreen = size.x;
-//		int hScreen = size.y;
+		// display.getSize(size);
+		// int wScreen = size.x;
+		// int hScreen = size.y;
 		// final Size dsSize = new Size(wScreen, hScreen);
 
 		// Smoothing
@@ -239,9 +261,9 @@ public class FindMyDoorActivity extends Activity implements
 			maxCorners = 1;
 		}
 
-		double qualityLevel = 0.01;
+		double qualityLevel = 0.2;
 		double minDistance = 40;
-		int blockSize1 = 5;
+		int blockSize1 = 25;
 		boolean useHarrisDetector = false;
 		double k1 = 0.04;
 
@@ -320,6 +342,8 @@ public class FindMyDoorActivity extends Activity implements
 			}
 		}
 
+		Collections.sort(doors);
+
 		// Up-sampling mEdit (edge image)
 		if (willResize) {
 			// down-sampling points position
@@ -336,15 +360,19 @@ public class FindMyDoorActivity extends Activity implements
 
 	private Mat printMat(Mat img) {
 		Imgproc.cvtColor(img, img, Imgproc.COLOR_GRAY2RGBA);
-		for (Door door : doors) {
-			drawDoor(img, door);
+
+		if (doors.size() > 0) {
+			drawDoor(img, doors.get(0));
 		}
+		// for (Door door : doors) {
+		// drawDoor(img, door);
+		// }
 
 		// Draw Corners
 		for (Point c : cornersList) {
 			Core.circle(img, c, 15, new Scalar(255, 0, 0), 2, 8, 0);
-			// Core.putText(mRgba, " "+cornersList.indexOf(c), c,
-			// Core.FONT_HERSHEY_PLAIN, 1.0, new Scalar(0,0,255));
+			Core.putText(mRgba, " " + cornersList.indexOf(c), c,
+					Core.FONT_HERSHEY_PLAIN, 1.0, new Scalar(0, 0, 255));
 		}
 
 		return img;
@@ -377,8 +405,6 @@ public class FindMyDoorActivity extends Activity implements
 
 		// TODO rimuovi il true
 		if (true && detectedDoor != null) {
-			// TODO trasformare in costanti
-			double FRThresL = 0.3, FRThresH = 0.4;
 
 			// Compare with edge img
 			double FR12 = calculateFillRatio(detectedDoor.getP1(),
@@ -415,6 +441,7 @@ public class FindMyDoorActivity extends Activity implements
 			if (avgFR < FRThresH)
 				return null;
 
+			detectedDoor.setAvgFillRatio(avgFR);
 		}
 
 		return detectedDoor;

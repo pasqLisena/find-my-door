@@ -10,5 +10,11 @@
     <item
         android:id="@+id/incr_divarious_canny"
         android:title="@string/incr_divarious_canny"/>
+    <item
+        android:id="@+id/incr_fr"
+        android:title="@string/incr_fr"/>
+    <item
+        android:id="@+id/decr_fr"
+        android:title="@string/decr_fr"/>
     
 </menu>
