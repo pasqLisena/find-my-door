@@ -45,11 +45,7 @@ public class FindMyDoorActivity extends Activity implements
 	private Size imgSize;
 	private double imgDiag; // diagonale
 
-	private static final Size dsSize = new Size(320, 240); // dimensione finale
-
 	private static boolean freeze;
-
-	private int cannyLowThres = 70, cannyUpThres = 120;
 
 	private CameraBridgeViewBase mOpenCvCameraView; // collegamento alla camera
 
@@ -76,9 +72,7 @@ public class FindMyDoorActivity extends Activity implements
 	private boolean willResize;
 
 	private List<Door> doors;
-
 	private List<Point> cornersList;
-	private double FRThresL = 0.4, FRThresH = 0.9;
 
 	public FindMyDoorActivity() {
 		Log.i(TAG, "Instantiated new " + this.getClass());
@@ -132,41 +126,41 @@ public class FindMyDoorActivity extends Activity implements
 
 	private void incrFR() {
 		double incr = 0.5;
-		FRThresL += incr;
-		FRThresH += incr;
-		Log.e(TAG, "Soglia FR: " + FRThresH);
+		Measure.FRThresL += incr;
+		Measure.FRThresH += incr;
+		Log.e(TAG, "Soglia FR: " + Measure.FRThresH);
 	}
 
 	private void decrFR() {
 		double decr = -0.5;
-		if (FRThresL >= decr) {
-			FRThresL += decr;
-			FRThresH += decr;
+		if (Measure.FRThresL >= decr) {
+			Measure.FRThresL += decr;
+			Measure.FRThresH += decr;
 		}
 	}
 
 	private void incrDivariousCanny() {
 		int decr = 10;
-		if (cannyLowThres >= decr) {
-			cannyUpThres += decr;
-			cannyLowThres -= decr;
+		if (Measure.cannyLowThres >= decr) {
+			Measure.cannyUpThres += decr;
+			Measure.cannyLowThres -= decr;
 		}
 	}
 
 	private void decreaseCanny() {
 		int decr = 20;
-		if (cannyUpThres >= decr && cannyLowThres >= decr) {
-			cannyUpThres -= decr;
-			cannyLowThres -= decr;
+		if (Measure.cannyUpThres >= decr && Measure.cannyLowThres >= decr) {
+			Measure.cannyUpThres -= decr;
+			Measure.cannyLowThres -= decr;
 		}
-		Log.d(TAG_CANNY, "Canny Thres changed in: " + cannyLowThres);
+		Log.d(TAG_CANNY, "Canny Thres changed in: " + Measure.cannyLowThres);
 	}
 
 	private void increaseCanny() {
 		int incr = 20;
-		cannyUpThres += incr;
-		cannyLowThres += incr;
-		Log.d(TAG_CANNY, "Canny Thres changed in: " + cannyLowThres);
+		Measure.cannyUpThres += incr;
+		Measure.cannyLowThres += incr;
+		Log.d(TAG_CANNY, "Canny Thres changed in: " + Measure.cannyLowThres);
 	}
 
 	@Override
@@ -192,7 +186,7 @@ public class FindMyDoorActivity extends Activity implements
 	public void onCameraViewStarted(int width, int height) {
 		imgSize = new Size(width, height);
 		imgDiag = Math.sqrt(Math.pow(height, 2) + Math.pow(width, 2));
-		willResize = !dsSize.equals(imgSize);
+		willResize = !Measure.dsSize.equals(imgSize);
 		Log.i(TAG, "size: " + imgSize.width + " x " + imgSize.height);
 		dsRatio = imgDiag / Measure.diag;
 
@@ -221,50 +215,34 @@ public class FindMyDoorActivity extends Activity implements
 		corners.clear();
 
 		// Smoothing
-		Size kSize = new Size(5, 5);
-		double sigmaX = 2.5, sigmaY = 2.5;
-		Imgproc.GaussianBlur(mRgba, mEdit, kSize, sigmaX, sigmaY);
+		Imgproc.GaussianBlur(mRgba, mEdit, Measure.kSize, Measure.sigmaX,
+				Measure.sigmaY);
 
 		// Down-sampling
 		if (willResize) {
-			Imgproc.resize(mEdit, mEdit, dsSize);
+			Imgproc.resize(mEdit, mEdit, Measure.dsSize);
 		}
 
 		// Detecting edge
-		Imgproc.Canny(mEdit, mEdit, cannyLowThres, cannyUpThres, 3, false);
-
-		// Harris Detector parameters
-		int blockSize = 5;
-		int apertureSize = 5;
-		double k = 0.04;
-
-		// Detecting corners with Shi-Tomasi algorithm
-		int maxCorners = 50;
-
-		if (maxCorners < 1) {
-			maxCorners = 1;
-		}
-
-		double qualityLevel = 0.2;
-		double minDistance = 40;
-		int blockSize1 = 25;
-		boolean useHarrisDetector = false;
-		double k1 = 0.04;
-
-		MatOfPoint corners = new MatOfPoint();
-		// Apply corner detection
+		Imgproc.Canny(mEdit, mEdit, Measure.cannyLowThres,
+				Measure.cannyUpThres, Measure.apertureSize, false);
 
 		int borderSize = 2;
 		Mat mEditBorder = new Mat(new Size(mEdit.height() + borderSize * 2,
 				mEdit.width() + borderSize * 2), mEdit.type());
-
 		Imgproc.copyMakeBorder(mEdit, mEditBorder, borderSize, borderSize,
 				borderSize, borderSize, Imgproc.BORDER_CONSTANT, new Scalar(
 						255, 255, 255));
 
-		Imgproc.goodFeaturesToTrack(mEditBorder, corners, maxCorners,
-				qualityLevel, minDistance, new Mat(), blockSize1,
-				useHarrisDetector, k1);
+		// Detecting corners with Shi-Tomasi algorithm
+		MatOfPoint corners = new MatOfPoint();
+		if (Measure.maxCorners < 1) {
+			Measure.maxCorners = 1;
+		}
+
+		Imgproc.goodFeaturesToTrack(mEditBorder, corners, Measure.maxCorners,
+				Measure.qualityLevel, Measure.minDistance, new Mat(),
+				Measure.blockSize1, Measure.useHarrisDetector, Measure.k1);
 
 		cornersList = corners.toList();
 		int cornersSize = cornersList.size();
@@ -284,22 +262,7 @@ public class FindMyDoorActivity extends Activity implements
 			}
 		}
 
-		// TODO trasformare in costanti (quando saranno definitive)
-		Measure.heightThresL = 0.3; // 50% of camera diag
-		Measure.heightThresH = 0.6; // 80% of camera diag
-		Measure.widthThresL = 0.1; // 10% of camera diag
-		Measure.widthThresH = 0.8; // 80% of camera diag
-
-		Measure.dirThresL = 40;
-		Measure.dirThresH = 80;
-		Measure.parallelThres = 3;
-
-		// Measure.HWThresL = 1.2;
-		// Measure.HWThresH = 2.4;
-
-		Measure.HWThresL = 2.0;
-		Measure.HWThresH = 3.0;
-
+		// Detect Doors
 		doors = new ArrayList<Door>();
 
 		// For each point
@@ -390,7 +353,7 @@ public class FindMyDoorActivity extends Activity implements
 			double FR12 = calculateFillRatio(detectedDoor.getP1(),
 					detectedDoor.getP2());
 
-			if (FR12 < FRThresL) {
+			if (FR12 < Measure.FRThresL) {
 				return null;
 			}
 			Log.d(TAG, "fill ratio 12: " + FR12);
@@ -398,14 +361,14 @@ public class FindMyDoorActivity extends Activity implements
 			double FR23 = calculateFillRatio(detectedDoor.getP2(),
 					detectedDoor.getP3());
 
-			if (FR23 < FRThresL) {
+			if (FR23 < Measure.FRThresL) {
 				return null;
 			}
 
 			double FR34 = calculateFillRatio(detectedDoor.getP3(),
 					detectedDoor.getP4());
 
-			if (FR34 < FRThresL) {
+			if (FR34 < Measure.FRThresL) {
 				return null;
 			}
 
@@ -413,12 +376,12 @@ public class FindMyDoorActivity extends Activity implements
 					detectedDoor.getP1());
 			Log.d(TAG, "fillRatio41: " + FR41);
 
-			if (FR41 < FRThresL) {
+			if (FR41 < Measure.FRThresL) {
 				return null;
 			}
 
 			double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
-			if (avgFR < FRThresH)
+			if (avgFR < Measure.FRThresH)
 				return null;
 
 			detectedDoor.setAvgFillRatio(avgFR);
