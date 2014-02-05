@@ -1,10 +1,8 @@
 package it.polito.cv.findmydoor;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Vector;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
@@ -25,7 +23,6 @@ import org.opencv.imgproc.Imgproc;
 import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Display;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -49,13 +46,8 @@ public class FindMyDoorActivity extends Activity implements
 	private double imgDiag; // diagonale
 
 	private static final Size dsSize = new Size(320, 240); // dimensione finale
-	private static final double dsDiag = 400;
 
 	private static boolean freeze;
-
-	double heightThresL, heightThresH, widthThresL, widthThresH;
-	int dirThresL, dirThresH, parallelThres;
-	double HWThresL, HWThresH;
 
 	private int cannyLowThres = 70, cannyUpThres = 120;
 
@@ -202,7 +194,7 @@ public class FindMyDoorActivity extends Activity implements
 		imgDiag = Math.sqrt(Math.pow(height, 2) + Math.pow(width, 2));
 		willResize = !dsSize.equals(imgSize);
 		Log.i(TAG, "size: " + imgSize.width + " x " + imgSize.height);
-		dsRatio = imgDiag / dsDiag;
+		dsRatio = imgDiag / Measure.diag;
 
 		mRgba = new Mat(imgSize, CvType.CV_8UC4);
 		mReturn = mEdit;
@@ -227,14 +219,6 @@ public class FindMyDoorActivity extends Activity implements
 		mEdit = new Mat();
 		mReturn = mEdit;
 		corners.clear();
-
-		// prova cattura resScreen
-		Display display = getWindowManager().getDefaultDisplay();
-		android.graphics.Point size = new android.graphics.Point();
-		// display.getSize(size);
-		// int wScreen = size.x;
-		// int hScreen = size.y;
-		// final Size dsSize = new Size(wScreen, hScreen);
 
 		// Smoothing
 		Size kSize = new Size(5, 5);
@@ -301,20 +285,20 @@ public class FindMyDoorActivity extends Activity implements
 		}
 
 		// TODO trasformare in costanti (quando saranno definitive)
-		heightThresL = 0.3; // 50% of camera diag
-		heightThresH = 0.6; // 80% of camera diag
-		widthThresL = 0.1; // 10% of camera diag
-		widthThresH = 0.8; // 80% of camera diag
+		Measure.heightThresL = 0.3; // 50% of camera diag
+		Measure.heightThresH = 0.6; // 80% of camera diag
+		Measure.widthThresL = 0.1; // 10% of camera diag
+		Measure.widthThresH = 0.8; // 80% of camera diag
 
-		dirThresL = 40;
-		dirThresH = 80;
-		parallelThres = 3;
+		Measure.dirThresL = 40;
+		Measure.dirThresH = 80;
+		Measure.parallelThres = 3;
 
-		// HWThresL = 1.2;
-		// HWThresH = 2.4;
+		// Measure.HWThresL = 1.2;
+		// Measure.HWThresH = 2.4;
 
-		HWThresL = 2.0;
-		HWThresH = 3.0;
+		Measure.HWThresL = 2.0;
+		Measure.HWThresH = 3.0;
 
 		doors = new ArrayList<Door>();
 
@@ -393,19 +377,15 @@ public class FindMyDoorActivity extends Activity implements
 	private Door doorDetect(Point p1, Point p2, Point p3, Point p4) {
 		Door detectedDoor = null;
 
-		if (checkGeometry(p1, p2, p3, p4)) {
+		try {
 			detectedDoor = new Door(p1, p2, p3, p4);
-		} else if (checkGeometry(p1, p3, p2, p4)) {
-			// commute long side points
-			detectedDoor = new Door(p1, p3, p2, p4);
-		} else if (checkGeometry(p1, p2, p4, p3)) {
-			// commute short side points
-			detectedDoor = new Door(p1, p2, p4, p3);
+		} catch (RuntimeException re) {
+			// do nothing
+			return null;
 		}
 
 		// TODO rimuovi il true
 		if (true && detectedDoor != null) {
-
 			// Compare with edge img
 			double FR12 = calculateFillRatio(detectedDoor.getP1(),
 					detectedDoor.getP2());
@@ -501,77 +481,6 @@ public class FindMyDoorActivity extends Activity implements
 		}
 
 		return fillRatio;
-	}
-
-	/*
-	 * Check if the rectangle p1-p2-p3-p4 is a door. The four point are in
-	 * order.
-	 */
-	private boolean checkGeometry(Point p1, Point p2, Point p3, Point p4) {
-		double siz12 = calcRelDistance(p1, p2);
-		double siz41 = calcRelDistance(p1, p4);
-
-		if (siz12 < siz41) {
-			// commute the sides
-			return checkGeometry(p2, p3, p4, p1);
-		}
-
-		if (siz12 < heightThresL || siz41 > widthThresH) {
-			return false;
-		}
-
-		double dir12 = calcDirection(p1, p2);
-		double dir41 = calcDirection(p1, p4);
-
-		if (dir12 < dirThresH || dir41 > dirThresL) {
-			return false;
-		}
-
-		double siz23 = calcRelDistance(p2, p3);
-		double dir23 = calcDirection(p2, p3);
-		double siz34 = calcRelDistance(p3, p4);
-		double dir34 = calcDirection(p3, p4);
-
-		if (siz34 < heightThresL || siz23 < widthThresL || dir23 > dirThresL
-				|| dir34 < dirThresH || Math.abs(dir12 - dir34) > parallelThres) {
-			return false;
-		}
-
-		double sizRatio = (siz12 + siz34) / (siz23 + siz41);
-
-		if (sizRatio < HWThresL || sizRatio > HWThresH) {
-			return false;
-		}
-
-		// if here, 1234 is a door
-		return true;
-	}
-
-	/*
-	 * Calculate the relative distance between two points.
-	 * 
-	 * @return the distance within a range of [0,1]
-	 */
-	private double calcRelDistance(Point i, Point j) {
-		return calcDistance(i, j) / dsDiag;
-	}
-
-	/*
-	 * Calculate the absolute distance between two points.
-	 * 
-	 * @return the distance
-	 */
-	private double calcDistance(Point i, Point j) {
-		double sizX = Math.pow((i.x - j.x), 2);
-		double sizY = Math.pow((i.y - j.y), 2);
-		return Math.sqrt(sizX + sizY);
-	}
-
-	private double calcDirection(Point i, Point j) {
-		double dfX = i.x - j.x;
-		double dfY = i.y - j.y;
-		double dfRatio = Math.abs(dfX / dfY);
-		return Math.atan(dfRatio) * 180 / Math.PI;
 	}
 
 	@Override
