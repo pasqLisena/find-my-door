@@ -25,7 +25,7 @@ public class Measure {
 	public static int maxCorners = 50;
 	public static double qualityLevel = 0.2;
 	public static double minDistance = 40;
-	public static int blockSize1 = 25;
+	public static int blockSize1 = 10;
 	public static boolean useHarrisDetector = false;
 	public static double k1 = 0.04;
 

@@ -191,7 +191,6 @@ public class FindMyDoorActivity extends Activity implements
 		dsRatio = imgDiag / Measure.diag;
 
 		mRgba = new Mat(imgSize, CvType.CV_8UC4);
-		mReturn = mEdit;
 		corners = new ArrayList<Point>();
 
 		Log.d(TAG, "width: " + height);
@@ -201,6 +200,26 @@ public class FindMyDoorActivity extends Activity implements
 
 	public void onCameraViewStopped() {
 		mRgba.release();
+	}
+
+	private Mat addBorder(Mat img, int borderSize) {
+		Size roiSize = new Size(img.width() - borderSize * 2, img.height()
+				- borderSize * 2);
+		Rect roi = new Rect(new Point(borderSize, borderSize), roiSize);
+
+		Mat mCrop = img.submat(roi);
+
+//		Mat mBorder = new Mat(img.size(), img.type());
+		Mat mBorder = img.clone();
+
+		Imgproc.copyMakeBorder(mCrop, mBorder, borderSize, borderSize,
+				borderSize, borderSize, Imgproc.BORDER_CONSTANT, new Scalar(
+						255, 255, 255));
+
+		
+		Log.e("IMPORTANTE", "img: "+img.size() + "--" + img.type());
+		Log.e("IMPORTANTE", "mBorder: "+mBorder.size() + "--" + mBorder.type());
+		return mBorder;
 	}
 
 	public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
@@ -227,12 +246,8 @@ public class FindMyDoorActivity extends Activity implements
 		Imgproc.Canny(mEdit, mEdit, Measure.cannyLowThres,
 				Measure.cannyUpThres, Measure.apertureSize, false);
 
-		int borderSize = 2;
-		Mat mEditBorder = new Mat(new Size(mEdit.height() + borderSize * 2,
-				mEdit.width() + borderSize * 2), mEdit.type());
-		Imgproc.copyMakeBorder(mEdit, mEditBorder, borderSize, borderSize,
-				borderSize, borderSize, Imgproc.BORDER_CONSTANT, new Scalar(
-						255, 255, 255));
+		mEdit = addBorder(mEdit, 2);
+		Log.e("IMPORTANTE", "****************** ");
 
 		// Detecting corners with Shi-Tomasi algorithm
 		MatOfPoint corners = new MatOfPoint();
@@ -240,27 +255,27 @@ public class FindMyDoorActivity extends Activity implements
 			Measure.maxCorners = 1;
 		}
 
-		Imgproc.goodFeaturesToTrack(mEditBorder, corners, Measure.maxCorners,
+		Imgproc.goodFeaturesToTrack(mEdit, corners, Measure.maxCorners,
 				Measure.qualityLevel, Measure.minDistance, new Mat(),
 				Measure.blockSize1, Measure.useHarrisDetector, Measure.k1);
 
 		cornersList = corners.toList();
 		int cornersSize = cornersList.size();
 		// Reset points position (with no border)
-		for (Point c : cornersList) {
-			c.x = (c.x - borderSize);
-			if (c.x > mEdit.cols()) {
-				c.x = mEdit.cols();
-			} else if (c.x < 0) {
-				c.x = 0;
-			}
-			c.y = (c.y - borderSize);
-			if (c.y > mEdit.rows()) {
-				c.y = mEdit.rows();
-			} else if (c.y < 0) {
-				c.y = 0;
-			}
-		}
+		// for (Point c : cornersList) {
+		// c.x = (c.x - borderSize);
+		// if (c.x > mEdit.cols()) {
+		// c.x = mEdit.cols();
+		// } else if (c.x < 0) {
+		// c.x = 0;
+		// }
+		// c.y = (c.y - borderSize);
+		// if (c.y > mEdit.rows()) {
+		// c.y = mEdit.rows();
+		// } else if (c.y < 0) {
+		// c.y = 0;
+		// }
+		// }
 
 		// Detect Doors
 		doors = new ArrayList<Door>();
@@ -300,14 +315,16 @@ public class FindMyDoorActivity extends Activity implements
 			}
 
 			Imgproc.resize(mEdit, mEdit, imgSize);
+
 		}
 
 		return printMat(mReturn);
 	}
 
 	private Mat printMat(Mat img) {
-		Imgproc.cvtColor(img, img, Imgproc.COLOR_GRAY2RGBA);
-
+		if (img.type() != mRgba.type()) {
+			Imgproc.cvtColor(img, img, Imgproc.COLOR_GRAY2RGBA);
+		}
 		if (doors.size() > 0) {
 			drawDoor(img, doors.get(0));
 		}
@@ -349,6 +366,7 @@ public class FindMyDoorActivity extends Activity implements
 
 		// TODO rimuovi il true
 		if (true && detectedDoor != null) {
+			Log.e(TAG, "eccolo!");
 			// Compare with edge img
 			double FR12 = calculateFillRatio(detectedDoor.getP1(),
 					detectedDoor.getP2());
