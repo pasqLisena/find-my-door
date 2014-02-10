@@ -45,7 +45,7 @@ public class FindMyDoorActivity extends Activity implements
 	private Size imgSize;
 	private double imgDiag; // diagonale
 
-	private static boolean freeze;
+	private static boolean freeze; //blocca l'immagine inquadrata
 
 	private CameraBridgeViewBase mOpenCvCameraView; // collegamento alla camera
 
@@ -187,7 +187,7 @@ public class FindMyDoorActivity extends Activity implements
 		imgSize = new Size(width, height);
 		imgDiag = Math.sqrt(Math.pow(height, 2) + Math.pow(width, 2));
 		willResize = !Measure.dsSize.equals(imgSize);
-		Log.i(TAG, "size: " + imgSize.width + " x " + imgSize.height);
+		
 		dsRatio = imgDiag / Measure.diag;
 
 		mRgba = new Mat(imgSize, CvType.CV_8UC4);
@@ -202,7 +202,9 @@ public class FindMyDoorActivity extends Activity implements
 		mRgba.release();
 	}
 
-	private Mat addBorder(Mat img, int borderSize) {
+	private Mat addBorder(Mat img, int borderSize) { 
+		//aggiunge un bordo interno per crere uno spigolo quando quello reale è nascosto
+		
 		Size roiSize = new Size(img.width() - borderSize * 2, img.height()
 				- borderSize * 2);
 		Rect roi = new Rect(new Point(borderSize, borderSize), roiSize);
@@ -217,8 +219,8 @@ public class FindMyDoorActivity extends Activity implements
 						255, 255, 255));
 
 		
-		Log.e("IMPORTANTE", "img: "+img.size() + "--" + img.type());
-		Log.e("IMPORTANTE", "mBorder: "+mBorder.size() + "--" + mBorder.type());
+//		Log.e("IMPORTANTE", "img: "+img.size() + "--" + img.type());
+//		Log.e("IMPORTANTE", "mBorder: "+mBorder.size() + "--" + mBorder.type());
 		return mBorder;
 	}
 
@@ -326,6 +328,7 @@ public class FindMyDoorActivity extends Activity implements
 			Imgproc.cvtColor(img, img, Imgproc.COLOR_GRAY2RGBA);
 		}
 		if (doors.size() > 0) {
+			//disegna la porta più probabile
 			drawDoor(img, doors.get(0));
 		}
 		// for (Door door : doors) {
@@ -366,7 +369,7 @@ public class FindMyDoorActivity extends Activity implements
 
 		// TODO rimuovi il true
 		if (true && detectedDoor != null) {
-			Log.e(TAG, "eccolo!");
+			
 			// Compare with edge img
 			double FR12 = calculateFillRatio(detectedDoor.getP1(),
 					detectedDoor.getP2());
