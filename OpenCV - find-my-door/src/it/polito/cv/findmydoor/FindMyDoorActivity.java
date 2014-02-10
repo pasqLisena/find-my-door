@@ -45,7 +45,7 @@ public class FindMyDoorActivity extends Activity implements
 	private Size imgSize;
 	private double imgDiag; // diagonale
 
-	private static boolean freeze; //blocca l'immagine inquadrata
+	private static boolean freeze; // blocca l'immagine inquadrata
 
 	private CameraBridgeViewBase mOpenCvCameraView; // collegamento alla camera
 
@@ -187,7 +187,7 @@ public class FindMyDoorActivity extends Activity implements
 		imgSize = new Size(width, height);
 		imgDiag = Math.sqrt(Math.pow(height, 2) + Math.pow(width, 2));
 		willResize = !Measure.dsSize.equals(imgSize);
-		
+
 		dsRatio = imgDiag / Measure.diag;
 
 		mRgba = new Mat(imgSize, CvType.CV_8UC4);
@@ -202,25 +202,22 @@ public class FindMyDoorActivity extends Activity implements
 		mRgba.release();
 	}
 
-	private Mat addBorder(Mat img, int borderSize) { 
-		//aggiunge un bordo interno per crere uno spigolo quando quello reale è nascosto
-		
+	private Mat addBorder(Mat img, int borderSize) {
+		// aggiunge un bordo interno per crere uno spigolo quando quello reale è
+		// nascosto
+
 		Size roiSize = new Size(img.width() - borderSize * 2, img.height()
 				- borderSize * 2);
 		Rect roi = new Rect(new Point(borderSize, borderSize), roiSize);
 
 		Mat mCrop = img.submat(roi);
 
-//		Mat mBorder = new Mat(img.size(), img.type());
 		Mat mBorder = img.clone();
 
 		Imgproc.copyMakeBorder(mCrop, mBorder, borderSize, borderSize,
 				borderSize, borderSize, Imgproc.BORDER_CONSTANT, new Scalar(
 						255, 255, 255));
 
-		
-//		Log.e("IMPORTANTE", "img: "+img.size() + "--" + img.type());
-//		Log.e("IMPORTANTE", "mBorder: "+mBorder.size() + "--" + mBorder.type());
 		return mBorder;
 	}
 
@@ -263,21 +260,6 @@ public class FindMyDoorActivity extends Activity implements
 
 		cornersList = corners.toList();
 		int cornersSize = cornersList.size();
-		// Reset points position (with no border)
-		// for (Point c : cornersList) {
-		// c.x = (c.x - borderSize);
-		// if (c.x > mEdit.cols()) {
-		// c.x = mEdit.cols();
-		// } else if (c.x < 0) {
-		// c.x = 0;
-		// }
-		// c.y = (c.y - borderSize);
-		// if (c.y > mEdit.rows()) {
-		// c.y = mEdit.rows();
-		// } else if (c.y < 0) {
-		// c.y = 0;
-		// }
-		// }
 
 		// Detect Doors
 		doors = new ArrayList<Door>();
@@ -328,7 +310,7 @@ public class FindMyDoorActivity extends Activity implements
 			Imgproc.cvtColor(img, img, Imgproc.COLOR_GRAY2RGBA);
 		}
 		if (doors.size() > 0) {
-			//disegna la porta più probabile
+			// disegna la porta più probabile
 			drawDoor(img, doors.get(0));
 		}
 		// for (Door door : doors) {
@@ -367,46 +349,42 @@ public class FindMyDoorActivity extends Activity implements
 			return null;
 		}
 
-		// TODO rimuovi il true
-		if (true && detectedDoor != null) {
-			
-			// Compare with edge img
-			double FR12 = calculateFillRatio(detectedDoor.getP1(),
-					detectedDoor.getP2());
+		// Compare with edge img
+		double FR12 = calculateFillRatio(detectedDoor.getP1(),
+				detectedDoor.getP2());
 
-			if (FR12 < Measure.FRThresL) {
-				return null;
-			}
-			Log.d(TAG, "fill ratio 12: " + FR12);
-
-			double FR23 = calculateFillRatio(detectedDoor.getP2(),
-					detectedDoor.getP3());
-
-			if (FR23 < Measure.FRThresL) {
-				return null;
-			}
-
-			double FR34 = calculateFillRatio(detectedDoor.getP3(),
-					detectedDoor.getP4());
-
-			if (FR34 < Measure.FRThresL) {
-				return null;
-			}
-
-			double FR41 = calculateFillRatio(detectedDoor.getP4(),
-					detectedDoor.getP1());
-			Log.d(TAG, "fillRatio41: " + FR41);
-
-			if (FR41 < Measure.FRThresL) {
-				return null;
-			}
-
-			double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
-			if (avgFR < Measure.FRThresH)
-				return null;
-
-			detectedDoor.setAvgFillRatio(avgFR);
+		if (FR12 < Measure.FRThresL) {
+			return null;
 		}
+		Log.d(TAG, "fill ratio 12: " + FR12);
+
+		double FR23 = calculateFillRatio(detectedDoor.getP2(),
+				detectedDoor.getP3());
+
+		if (FR23 < Measure.FRThresL) {
+			return null;
+		}
+
+		double FR34 = calculateFillRatio(detectedDoor.getP3(),
+				detectedDoor.getP4());
+
+		if (FR34 < Measure.FRThresL) {
+			return null;
+		}
+
+		double FR41 = calculateFillRatio(detectedDoor.getP4(),
+				detectedDoor.getP1());
+		Log.d(TAG, "fillRatio41: " + FR41);
+
+		if (FR41 < Measure.FRThresL) {
+			return null;
+		}
+
+		double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
+		if (avgFR < Measure.FRThresH)
+			return null;
+
+		detectedDoor.setAvgFillRatio(avgFR);
 
 		return detectedDoor;
 	}
