@@ -19,6 +19,7 @@ import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.utils.Converters;
 
 import android.app.Activity;
 import android.os.Bundle;
@@ -229,7 +230,6 @@ public class FindMyDoorActivity extends Activity implements
 		}
 		mRgba = inputFrame.rgba();
 		mEdit = new Mat();
-		mReturn = mEdit;
 		corners.clear();
 
 		// Smoothing
@@ -246,47 +246,65 @@ public class FindMyDoorActivity extends Activity implements
 				Measure.cannyUpThres, Measure.apertureSize, false);
 
 		mEdit = addBorder(mEdit, 2);
-		Log.e("IMPORTANTE", "****************** ");
 
-		// Detecting corners with Shi-Tomasi algorithm
-		MatOfPoint corners = new MatOfPoint();
-		if (Measure.maxCorners < 1) {
-			Measure.maxCorners = 1;
+		Mat lines = new Mat();
+		Imgproc.HoughLinesP(mEdit, lines, Measure.houghRho, Measure.houghTheta,
+				Measure.houghThreshold, Measure.houghMinLineSize,
+				Measure.houghLineGap);
+
+		ArrayList<Point[]> lineList = matToListLines(lines);
+		cornersList = new ArrayList<Point>();
+
+		for (int i = 0; i < lineList.size(); i++) {
+			Point[] line1 = lineList.get(i);
+			int x1 = (int) line1[0].x, y1 = (int) line1[0].y, x2 = (int) line1[1].x, y2 = (int) line1[1].y;
+
+			for (int j = i + 1; j < lineList.size(); j++) {
+				Point[] line2 = lineList.get(j);
+				int x3 = (int) line2[0].x, y3 = (int) line2[0].y, x4 = (int) line2[1].x, y4 = (int) line2[1].y;
+
+				float d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+
+				if (d != 0) {
+					int ix = (int) (((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2)
+							* (x3 * y4 - y3 * x4)) / d);
+					int iy = (int) (((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2)
+							* (x3 * y4 - y3 * x4)) / d);
+
+					cornersList.add(new Point(ix, iy));
+				}
+
+			}
 		}
 
-		Imgproc.goodFeaturesToTrack(mEdit, corners, Measure.maxCorners,
-				Measure.qualityLevel, Measure.minDistance, new Mat(),
-				Measure.blockSize1, Measure.useHarrisDetector, Measure.k1);
-
-		cornersList = corners.toList();
 		int cornersSize = cornersList.size();
 
 		// Detect Doors
 		doors = new ArrayList<Door>();
 
 		// For each point
-		for (int i = 0; i < cornersSize; i++) {
-			Point p1 = cornersList.get(i);
-			// Consider each successive point
-			for (int j = i + 1; j < cornersSize; j++) {
-				Point p2 = cornersList.get(j);
-
-				// and so on with 3rd and 4th points
-				for (int l = j + 1; l < cornersSize; l++) {
-					Point p3 = cornersList.get(l);
-
-					for (int m = l + 1; m < cornersSize; m++) {
-						Point p4 = cornersList.get(m);
-
-						Door newDoor = doorDetect(p1, p2, p3, p4);
-						if (newDoor != null) {
-							Log.d(TAG, "Door found!");
-							doors.add(newDoor);
-						}
-					}
-				}
-			}
-		}
+//		for (int i = 0; i < cornersSize; i++) {
+//			Point p1 = cornersList.get(i);
+//			// Consider each successive point
+//			for (int j = i + 1; j < cornersSize; j++) {
+//				Point p2 = cornersList.get(j);
+//
+//				// and so on with 3rd and 4th points
+//				for (int l = j + 1; l < cornersSize; l++) {
+//					Point p3 = cornersList.get(l);
+//
+//					for (int m = l + 1; m < cornersSize; m++) {
+//						Point p4 = cornersList.get(m);
+//
+//						Door newDoor = doorDetect(p1, p2, p3, p4);
+//						if (newDoor != null) {
+//							Log.d(TAG, "Door found!");
+//							doors.add(newDoor);
+//						}
+//					}
+//				}
+//			}
+//		}
 
 		Collections.sort(doors);
 
@@ -302,20 +320,38 @@ public class FindMyDoorActivity extends Activity implements
 
 		}
 
+		mReturn = mEdit;
+
 		return printMat(mReturn);
+	}
+
+	private ArrayList<Point[]> matToListLines(Mat src) {
+		ArrayList<Point[]> dst = new ArrayList<Point[]>();
+
+		for (int x = 0; x < src.cols(); x++) {
+			double[] vec = src.get(0, x);
+			double x1 = vec[0], y1 = vec[1], x2 = vec[2], y2 = vec[3];
+
+			Point start = new Point(x1, y1);
+			Point end = new Point(x2, y2);
+
+			dst.add(new Point[] { start, end });
+		}
+
+		return dst;
 	}
 
 	private Mat printMat(Mat img) {
 		if (img.type() != mRgba.type()) {
 			Imgproc.cvtColor(img, img, Imgproc.COLOR_GRAY2RGBA);
 		}
-		if (doors.size() > 0) {
-			// disegna la porta più probabile
-			drawDoor(img, doors.get(0));
-		}
-		// for (Door door : doors) {
-		// drawDoor(img, door);
+		// if (doors.size() > 0) {
+		// // disegna la porta più probabile
+		// drawDoor(img, doors.get(0));
 		// }
+		for (Door door : doors) {
+			drawDoor(img, door);
+		}
 
 		// Draw Corners
 		for (Point c : cornersList) {

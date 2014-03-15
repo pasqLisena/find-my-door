@@ -11,12 +11,19 @@ public class Measure {
 	public static final double diag = 400;
 
 	// Parametri Gaussian Blur
-	public static Size kSize = new Size(5, 5);
+	public static Size kSize = new Size(9, 9);
 	public static double sigmaX = 2.5, sigmaY = 2.5;
 	
 	// Parametri Canny
 	public static int cannyLowThres = 70, cannyUpThres = 120;
 	public static int apertureSize = 3; // This must be odd
+
+	// Parametri Hough Line Transform
+	public static int houghRho = 1;
+	public static double houghTheta = Math.PI/180;
+	public static int houghThreshold = 60;
+	public static int houghMinLineSize = 60;
+	public static int houghLineGap = 10;
 
 	
 	/************ CORNERS DETECTION *******************/
