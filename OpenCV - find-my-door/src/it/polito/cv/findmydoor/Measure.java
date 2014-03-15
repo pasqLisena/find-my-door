@@ -35,9 +35,12 @@ public class Measure {
 	public static int blockSize1 = 10;
 	public static boolean useHarrisDetector = false;
 	public static double k1 = 0.04;
-
+	
 	
 	/************ DOORS DETECTION *******************/
+	
+	// Lines
+	public static double maxPointGap = 0.01; // 1% of camera diag (4px)
 	
 	// Parametri geometrici
 	public static double heightThresL = 0.3; // 50% of camera diag

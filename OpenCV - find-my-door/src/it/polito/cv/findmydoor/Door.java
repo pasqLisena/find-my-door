@@ -1,5 +1,8 @@
 package it.polito.cv.findmydoor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.opencv.core.Point;
 
 import android.util.Log;
@@ -11,6 +14,7 @@ public class Door implements Comparable<Door> {
 			"This is not a door");
 
 	private Point p1, p2, p3, p4;
+	private Line l1, l2, l3, l4;
 	private double avgFillRatio;
 	private double geomRate;// punteggio calcolato sui controlli geometrici
 
@@ -34,11 +38,56 @@ public class Door implements Comparable<Door> {
 				this.p3 = p4;
 				this.p4 = p3;
 
-				if (!checkGeometry()) 
+				if (!checkGeometry())
 					throw noDoorException;
 
 			}
 		}
+	}
+
+	public Door(Line line1, Line line2, Line line3, Line line4) {
+		List<Line> horLines = new ArrayList<Line>();
+		List<Line> verLines = new ArrayList<Line>();
+
+		if (line1.isHorizontal())
+			horLines.add(line1);
+		else
+			verLines.add(line1);
+
+		if (line2.isHorizontal())
+			horLines.add(line2);
+		else
+			verLines.add(line2);
+
+		if (line3.isHorizontal())
+			horLines.add(line3);
+		else
+			verLines.add(line3);
+
+		if (line4.isHorizontal())
+			horLines.add(line4);
+		else
+			verLines.add(line4);
+
+		if (horLines.size() > 2 || verLines.size() > 2)
+			throw noDoorException;
+
+		l1 = horLines.get(0);
+		l2 = verLines.get(0);
+		l3 = horLines.get(1);
+		l4 = verLines.get(1);
+
+		if (!(l1.isConsecutive(l2) && l2.isConsecutive(l3)
+				&& l3.isConsecutive(l4) && l4.isConsecutive(l1)))
+			throw noDoorException;
+
+		if(Math.abs(l2.dir - l4.dir)> Measure.parallelThres)
+			throw noDoorException;
+
+		double ratio = (l4.siz+l2.siz)/(l3.siz+l1.siz);
+		
+		if(ratio < Measure.HWThresL || ratio > Measure.HWThresH)
+			throw noDoorException;
 	}
 
 	public Point getP1() {
@@ -65,7 +114,7 @@ public class Door implements Comparable<Door> {
 	public int compareTo(Door another) {
 		// pesi per la composizione del rate totale
 		int fillW = 100, geomW = 200;
-		// diminuisco fillW del parametro thickness dell'activity 
+		// diminuisco fillW del parametro thickness dell'activity
 		// TODO: sistemare
 		fillW /= 5;
 
@@ -156,7 +205,7 @@ public class Door implements Comparable<Door> {
 	 * 
 	 * @return the distance within a range of [0,1]
 	 */
-	private static double calcRelDistance(Point i, Point j) {
+	public static double calcRelDistance(Point i, Point j) {
 		return calcDistance(i, j) / Measure.diag;
 	}
 
@@ -165,13 +214,13 @@ public class Door implements Comparable<Door> {
 	 * 
 	 * @return the distance
 	 */
-	private static double calcDistance(Point i, Point j) {
+	public static double calcDistance(Point i, Point j) {
 		double sizX = Math.pow((i.x - j.x), 2);
 		double sizY = Math.pow((i.y - j.y), 2);
 		return Math.sqrt(sizX + sizY);
 	}
 
-	private static double calcDirection(Point i, Point j) {
+	public static double calcDirection(Point i, Point j) {
 		double dfX = i.x - j.x;
 		double dfY = i.y - j.y;
 		double dfRatio = Math.abs(dfX / dfY);

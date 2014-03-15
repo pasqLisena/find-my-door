@@ -74,6 +74,7 @@ public class FindMyDoorActivity extends Activity implements
 
 	private List<Door> doors;
 	private List<Point> cornersList;
+	private ArrayList<Line> lineList;
 
 	public FindMyDoorActivity() {
 		Log.i(TAG, "Instantiated new " + this.getClass());
@@ -252,61 +253,91 @@ public class FindMyDoorActivity extends Activity implements
 				Measure.houghThreshold, Measure.houghMinLineSize,
 				Measure.houghLineGap);
 
-		ArrayList<Point[]> lineList = matToListLines(lines);
+		lineList = matToListLines(lines);
 		cornersList = new ArrayList<Point>();
 
-		for (int i = 0; i < lineList.size(); i++) {
-			Point[] line1 = lineList.get(i);
-			int x1 = (int) line1[0].x, y1 = (int) line1[0].y, x2 = (int) line1[1].x, y2 = (int) line1[1].y;
-
-			for (int j = i + 1; j < lineList.size(); j++) {
-				Point[] line2 = lineList.get(j);
-				int x3 = (int) line2[0].x, y3 = (int) line2[0].y, x4 = (int) line2[1].x, y4 = (int) line2[1].y;
-
-				float d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-
-				if (d != 0) {
-					int ix = (int) (((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2)
-							* (x3 * y4 - y3 * x4)) / d);
-					int iy = (int) (((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2)
-							* (x3 * y4 - y3 * x4)) / d);
-
-					cornersList.add(new Point(ix, iy));
-				}
-
-			}
-		}
+		// for (int i = 0; i < lineList.size(); i++) {
+		// Point[] line1 = lineList.get(i);
+		// int x1 = (int) line1[0].x, y1 = (int) line1[0].y, x2 = (int)
+		// line1[1].x, y2 = (int) line1[1].y;
+		//
+		// for (int j = i + 1; j < lineList.size(); j++) {
+		// Point[] line2 = lineList.get(j);
+		// int x3 = (int) line2[0].x, y3 = (int) line2[0].y, x4 = (int)
+		// line2[1].x, y4 = (int) line2[1].y;
+		//
+		// float d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+		//
+		// if (d != 0) {
+		// int ix = (int) (((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2)
+		// * (x3 * y4 - y3 * x4)) / d);
+		// int iy = (int) (((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2)
+		// * (x3 * y4 - y3 * x4)) / d);
+		//
+		// cornersList.add(new Point(ix, iy));
+		// }
+		//
+		// }
+		// }
 
 		int cornersSize = cornersList.size();
 
 		// Detect Doors
 		doors = new ArrayList<Door>();
 
-		// For each point
-//		for (int i = 0; i < cornersSize; i++) {
-//			Point p1 = cornersList.get(i);
-//			// Consider each successive point
-//			for (int j = i + 1; j < cornersSize; j++) {
-//				Point p2 = cornersList.get(j);
-//
-//				// and so on with 3rd and 4th points
-//				for (int l = j + 1; l < cornersSize; l++) {
-//					Point p3 = cornersList.get(l);
-//
-//					for (int m = l + 1; m < cornersSize; m++) {
-//						Point p4 = cornersList.get(m);
-//
-//						Door newDoor = doorDetect(p1, p2, p3, p4);
-//						if (newDoor != null) {
-//							Log.d(TAG, "Door found!");
-//							doors.add(newDoor);
-//						}
-//					}
-//				}
-//			}
-//		}
+		for (int i = 0; i < lineList.size(); i++) {
+			Line line1 = lineList.get(i);
 
-		Collections.sort(doors);
+			for (int j = i + 1; j < lineList.size(); j++) {
+				Line line2 = lineList.get(j);
+
+				for (int l = j + 1; l < lineList.size(); l++) {
+					Line line3 = lineList.get(l);
+
+					if (line1.isHorizontal() == line2.isHorizontal()
+							&& line1.isHorizontal() == line3.isHorizontal()) {
+						// ho tre linee oriz o verticali
+						continue;
+					}
+
+					for (int m = l + 1; m < lineList.size(); m++) {
+						Line line4 = lineList.get(m);
+
+						Door newDoor = doorDetect(line1, line2, line3, line4);
+						if (newDoor != null) {
+							Log.d(TAG, "Door found!");
+							doors.add(newDoor);
+						}
+					}
+				}
+			}
+		}
+
+		// For each point
+		// for (int i = 0; i < cornersSize; i++) {
+		// Point p1 = cornersList.get(i);
+		// // Consider each successive point
+		// for (int j = i + 1; j < cornersSize; j++) {
+		// Point p2 = cornersList.get(j);
+		//
+		// // and so on with 3rd and 4th points
+		// for (int l = j + 1; l < cornersSize; l++) {
+		// Point p3 = cornersList.get(l);
+		//
+		// for (int m = l + 1; m < cornersSize; m++) {
+		// Point p4 = cornersList.get(m);
+		//
+		// Door newDoor = doorDetect(p1, p2, p3, p4);
+		// if (newDoor != null) {
+		// Log.d(TAG, "Door found!");
+		// doors.add(newDoor);
+		// }
+		// }
+		// }
+		// }
+		// }
+
+		// Collections.sort(doors);
 
 		// Up-sampling mEdit (edge image)
 		if (willResize) {
@@ -314,6 +345,14 @@ public class FindMyDoorActivity extends Activity implements
 			for (Point c : cornersList) {
 				c.x = dsRatio * (c.x);
 				c.y = dsRatio * (c.y);
+			}
+			
+			for (Line l : lineList){
+				Point[] pts = {l.start, l.end};
+				for (Point p: pts){
+					p.x = dsRatio * (p.x);
+					p.y = dsRatio * (p.y);
+				}
 			}
 
 			Imgproc.resize(mEdit, mEdit, imgSize);
@@ -325,8 +364,8 @@ public class FindMyDoorActivity extends Activity implements
 		return printMat(mReturn);
 	}
 
-	private ArrayList<Point[]> matToListLines(Mat src) {
-		ArrayList<Point[]> dst = new ArrayList<Point[]>();
+	private ArrayList<Line> matToListLines(Mat src) {
+		ArrayList<Line> dst = new ArrayList<Line>();
 
 		for (int x = 0; x < src.cols(); x++) {
 			double[] vec = src.get(0, x);
@@ -335,7 +374,11 @@ public class FindMyDoorActivity extends Activity implements
 			Point start = new Point(x1, y1);
 			Point end = new Point(x2, y2);
 
-			dst.add(new Point[] { start, end });
+			try {
+				dst.add(new Line(start, end));
+			} catch (RuntimeException e) {
+
+			}
 		}
 
 		return dst;
@@ -345,6 +388,16 @@ public class FindMyDoorActivity extends Activity implements
 		if (img.type() != mRgba.type()) {
 			Imgproc.cvtColor(img, img, Imgproc.COLOR_GRAY2RGBA);
 		}
+
+		for (int i = 0; i < lineList.size(); i++) {
+			Line line = lineList.get(i);
+			Point p1 = line.start;
+			Point p2 = line.end;
+
+			Scalar yellow = new Scalar(0, 255, 255);
+			Core.line(img, p1, p2, yellow, 3);
+		}
+
 		// if (doors.size() > 0) {
 		// // disegna la porta più probabile
 		// drawDoor(img, doors.get(0));
@@ -369,6 +422,56 @@ public class FindMyDoorActivity extends Activity implements
 		Core.line(image, door.getP2(), door.getP3(), doorColor, 4);
 		Core.line(image, door.getP3(), door.getP4(), doorColor, 4);
 		Core.line(image, door.getP4(), door.getP1(), doorColor, 4);
+	}
+
+	private Door doorDetect(Line line1, Line line2, Line line3, Line line4) {
+		Door detectedDoor = null;
+
+		try {
+			detectedDoor = new Door(line1, line2, line3, line4);
+		} catch (RuntimeException re) {
+			// do nothing
+			return null;
+		}
+
+		// Compare with edge img
+		double FR12 = calculateFillRatio(detectedDoor.getP1(),
+				detectedDoor.getP2());
+
+		if (FR12 < Measure.FRThresL) {
+			return null;
+		}
+		Log.d(TAG, "fill ratio 12: " + FR12);
+
+		double FR23 = calculateFillRatio(detectedDoor.getP2(),
+				detectedDoor.getP3());
+
+		if (FR23 < Measure.FRThresL) {
+			return null;
+		}
+
+		double FR34 = calculateFillRatio(detectedDoor.getP3(),
+				detectedDoor.getP4());
+
+		if (FR34 < Measure.FRThresL) {
+			return null;
+		}
+
+		double FR41 = calculateFillRatio(detectedDoor.getP4(),
+				detectedDoor.getP1());
+		Log.d(TAG, "fillRatio41: " + FR41);
+
+		if (FR41 < Measure.FRThresL) {
+			return null;
+		}
+
+		double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
+		if (avgFR < Measure.FRThresH)
+			return null;
+
+		detectedDoor.setAvgFillRatio(avgFR);
+
+		return detectedDoor;
 	}
 
 	/*
