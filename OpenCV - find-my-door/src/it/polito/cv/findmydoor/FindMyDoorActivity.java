@@ -217,8 +217,8 @@ public class FindMyDoorActivity extends Activity implements
 		Mat mBorder = img.clone();
 
 		Imgproc.copyMakeBorder(mCrop, mBorder, borderSize, borderSize,
-				borderSize, borderSize, Imgproc.BORDER_CONSTANT, new Scalar(
-						255, 255, 255));
+				borderSize, borderSize, Imgproc.BORDER_ISOLATED,
+				new Scalar(255, 255, 255));
 
 		return mBorder;
 	}
@@ -241,12 +241,12 @@ public class FindMyDoorActivity extends Activity implements
 		if (willResize) {
 			Imgproc.resize(mEdit, mEdit, Measure.dsSize);
 		}
+		mEdit = addBorder(mEdit, 2);
 
 		// Detecting edge
 		Imgproc.Canny(mEdit, mEdit, Measure.cannyLowThres,
 				Measure.cannyUpThres, Measure.apertureSize, false);
 
-		mEdit = addBorder(mEdit, 5);
 
 		Mat lines = new Mat();
 		Imgproc.HoughLinesP(mEdit, lines, Measure.houghRho, Measure.houghTheta,
@@ -434,42 +434,42 @@ public class FindMyDoorActivity extends Activity implements
 			return null;
 		}
 
-//		// Compare with edge img
-//		double FR12 = calculateFillRatio(detectedDoor.getP1(),
-//				detectedDoor.getP2());
-//
-//		if (FR12 < Measure.FRThresL) {
-//			return null;
-//		}
-//		Log.d(TAG, "fill ratio 12: " + FR12);
-//
-//		double FR23 = calculateFillRatio(detectedDoor.getP2(),
-//				detectedDoor.getP3());
-//
-//		if (FR23 < Measure.FRThresL) {
-//			return null;
-//		}
-//
-//		double FR34 = calculateFillRatio(detectedDoor.getP3(),
-//				detectedDoor.getP4());
-//
-//		if (FR34 < Measure.FRThresL) {
-//			return null;
-//		}
-//
-//		double FR41 = calculateFillRatio(detectedDoor.getP4(),
-//				detectedDoor.getP1());
-//		Log.d(TAG, "fillRatio41: " + FR41);
-//
-//		if (FR41 < Measure.FRThresL) {
-//			return null;
-//		}
-//
-//		double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
-//		if (avgFR < Measure.FRThresH)
-//			return null;
-//
-//		detectedDoor.setAvgFillRatio(avgFR);
+		// // Compare with edge img
+		// double FR12 = calculateFillRatio(detectedDoor.getP1(),
+		// detectedDoor.getP2());
+		//
+		// if (FR12 < Measure.FRThresL) {
+		// return null;
+		// }
+		// Log.d(TAG, "fill ratio 12: " + FR12);
+		//
+		// double FR23 = calculateFillRatio(detectedDoor.getP2(),
+		// detectedDoor.getP3());
+		//
+		// if (FR23 < Measure.FRThresL) {
+		// return null;
+		// }
+		//
+		// double FR34 = calculateFillRatio(detectedDoor.getP3(),
+		// detectedDoor.getP4());
+		//
+		// if (FR34 < Measure.FRThresL) {
+		// return null;
+		// }
+		//
+		// double FR41 = calculateFillRatio(detectedDoor.getP4(),
+		// detectedDoor.getP1());
+		// Log.d(TAG, "fillRatio41: " + FR41);
+		//
+		// if (FR41 < Measure.FRThresL) {
+		// return null;
+		// }
+		//
+		// double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
+		// if (avgFR < Measure.FRThresH)
+		// return null;
+		//
+		// detectedDoor.setAvgFillRatio(avgFR);
 
 		return detectedDoor;
 	}
@@ -489,41 +489,41 @@ public class FindMyDoorActivity extends Activity implements
 		}
 
 		// Compare with edge img
-//		double FR12 = calculateFillRatio(detectedDoor.getP1(),
-//				detectedDoor.getP2());
-//
-//		if (FR12 < Measure.FRThresL) {
-//			return null;
-//		}
-//		Log.d(TAG, "fill ratio 12: " + FR12);
-//
-//		double FR23 = calculateFillRatio(detectedDoor.getP2(),
-//				detectedDoor.getP3());
-//
-//		if (FR23 < Measure.FRThresL) {
-//			return null;
-//		}
-//
-//		double FR34 = calculateFillRatio(detectedDoor.getP3(),
-//				detectedDoor.getP4());
-//
-//		if (FR34 < Measure.FRThresL) {
-//			return null;
-//		}
-//
-//		double FR41 = calculateFillRatio(detectedDoor.getP4(),
-//				detectedDoor.getP1());
-//		Log.d(TAG, "fillRatio41: " + FR41);
-//
-//		if (FR41 < Measure.FRThresL) {
-//			return null;
-//		}
-//
-//		double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
-//		if (avgFR < Measure.FRThresH)
-//			return null;
-//
-//		detectedDoor.setAvgFillRatio(avgFR);
+		// double FR12 = calculateFillRatio(detectedDoor.getP1(),
+		// detectedDoor.getP2());
+		//
+		// if (FR12 < Measure.FRThresL) {
+		// return null;
+		// }
+		// Log.d(TAG, "fill ratio 12: " + FR12);
+		//
+		// double FR23 = calculateFillRatio(detectedDoor.getP2(),
+		// detectedDoor.getP3());
+		//
+		// if (FR23 < Measure.FRThresL) {
+		// return null;
+		// }
+		//
+		// double FR34 = calculateFillRatio(detectedDoor.getP3(),
+		// detectedDoor.getP4());
+		//
+		// if (FR34 < Measure.FRThresL) {
+		// return null;
+		// }
+		//
+		// double FR41 = calculateFillRatio(detectedDoor.getP4(),
+		// detectedDoor.getP1());
+		// Log.d(TAG, "fillRatio41: " + FR41);
+		//
+		// if (FR41 < Measure.FRThresL) {
+		// return null;
+		// }
+		//
+		// double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
+		// if (avgFR < Measure.FRThresH)
+		// return null;
+		//
+		// detectedDoor.setAvgFillRatio(avgFR);
 
 		return detectedDoor;
 	}
