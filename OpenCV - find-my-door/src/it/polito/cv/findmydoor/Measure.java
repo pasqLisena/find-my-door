@@ -21,9 +21,9 @@ public class Measure {
 	// Parametri Hough Line Transform
 	public static int houghRho = 1;
 	public static double houghTheta = Math.PI/180;
-	public static int houghThreshold = 60;
-	public static int houghMinLineSize = 60;
-	public static int houghLineGap = 10;
+	public static int houghThreshold = 80;
+	public static int houghMinLineSize = 40;
+	public static int houghLineGap = 20;
 
 	
 	/************ CORNERS DETECTION *******************/
@@ -44,7 +44,7 @@ public class Measure {
 	
 	// Parametri geometrici
 	public static double heightThresL = 0.3; // 50% of camera diag
-	public static double heightThresH = 0.6; // 80% of camera diag
+	public static double heightThresH = 0.7; // 80% of camera diag
 	public static double widthThresL = 0.1; // 10% of camera diag
 	public static double widthThresH = 0.8; // 80% of camera diag
 
@@ -56,6 +56,6 @@ public class Measure {
 	public static double HWThresH = 3.0;
 	
 	// Parametri Fill Ratio
-	public static double FRThresL = 0.4;
-	public static double FRThresH = 0.9;
+	public static double FRThresL = 0.1;
+	public static double FRThresH = 0.3;
 }

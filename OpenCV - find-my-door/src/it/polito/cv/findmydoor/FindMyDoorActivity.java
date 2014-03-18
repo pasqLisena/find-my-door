@@ -19,6 +19,7 @@ import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.ml.Ml;
 import org.opencv.utils.Converters;
 
 import android.app.Activity;
@@ -41,6 +42,8 @@ public class FindMyDoorActivity extends Activity implements
 	private Mat mRgba; // immagine originale
 	private Mat mEdit; // immagine modificata (canny)
 	private Mat mReturn; // puntatore all'immagine da visualizzare
+	private Mat mLine; // immagine delle linee trovate
+
 	private List<Point> corners;
 
 	private Size imgSize;
@@ -217,8 +220,8 @@ public class FindMyDoorActivity extends Activity implements
 		Mat mBorder = img.clone();
 
 		Imgproc.copyMakeBorder(mCrop, mBorder, borderSize, borderSize,
-				borderSize, borderSize, Imgproc.BORDER_ISOLATED,
-				new Scalar(255, 255, 255));
+				borderSize, borderSize, Imgproc.BORDER_ISOLATED, new Scalar(
+						255, 255, 255));
 
 		return mBorder;
 	}
@@ -247,19 +250,26 @@ public class FindMyDoorActivity extends Activity implements
 		Imgproc.Canny(mEdit, mEdit, Measure.cannyLowThres,
 				Measure.cannyUpThres, Measure.apertureSize, false);
 
-
-		Mat lines = new Mat();
-		Imgproc.HoughLinesP(mEdit, lines, Measure.houghRho, Measure.houghTheta,
+		// Detect lines
+		mLine = new Mat();
+		Imgproc.HoughLinesP(mEdit, mLine, Measure.houghRho, Measure.houghTheta,
 				Measure.houghThreshold, Measure.houghMinLineSize,
 				Measure.houghLineGap);
 
-		lineList = matToListLines(lines);
+		lineList = matToListLines(mLine);
+		// Detect corners
 		cornersList = new ArrayList<Point>();
+		
+		mLine = Mat.zeros(mEdit.height(), mEdit.width(), CvType.CV_32FC1);
+		Scalar white = new Scalar(255, 255, 255);
+		int thickness = 1;
 
 		for (int i = 0; i < lineList.size(); i++) {
 			Line line1 = lineList.get(i);
 			Point p1a = line1.start, p1b = line1.end;
 			int x1 = (int) p1a.x, y1 = (int) p1a.y, x2 = (int) p1b.x, y2 = (int) p1b.y;
+
+			Core.line(mLine, p1a, p1b, white, thickness);
 
 			for (int j = i + 1; j < lineList.size(); j++) {
 				Line line2 = lineList.get(j);
@@ -274,7 +284,10 @@ public class FindMyDoorActivity extends Activity implements
 					int iy = (int) (((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2)
 							* (x3 * y4 - y3 * x4)) / d);
 
-					cornersList.add(new Point(ix, iy));
+					if (ix > 0 && ix < mEdit.width() && iy > 0
+							&& iy < mEdit.height()) {
+						cornersList.add(new Point(ix, iy));
+					}
 				}
 
 			}
@@ -284,34 +297,6 @@ public class FindMyDoorActivity extends Activity implements
 
 		// Detect Doors
 		doors = new ArrayList<Door>();
-
-		// for (int i = 0; i < lineList.size(); i++) {
-		// Line line1 = lineList.get(i);
-		//
-		// for (int j = i + 1; j < lineList.size(); j++) {
-		// Line line2 = lineList.get(j);
-		//
-		// for (int l = j + 1; l < lineList.size(); l++) {
-		// Line line3 = lineList.get(l);
-		//
-		// if (line1.isHorizontal() == line2.isHorizontal()
-		// && line1.isHorizontal() == line3.isHorizontal()) {
-		// // ho tre linee oriz o verticali
-		// continue;
-		// }
-		//
-		// for (int m = l + 1; m < lineList.size(); m++) {
-		// Line line4 = lineList.get(m);
-		//
-		// Door newDoor = doorDetect(line1, line2, line3, line4);
-		// if (newDoor != null) {
-		// Log.d(TAG, "Door found!");
-		// doors.add(newDoor);
-		// }
-		// }
-		// }
-		// }
-		// }
 
 		// For each point
 		for (int i = 0; i < cornersSize; i++) {
@@ -365,8 +350,8 @@ public class FindMyDoorActivity extends Activity implements
 	}
 
 	private ArrayList<Line> matToListLines(Mat src) {
-		ArrayList<Line> dst = new ArrayList<Line>();
-
+		ArrayList<Line> dstList = new ArrayList<Line>();
+		
 		for (int x = 0; x < src.cols(); x++) {
 			double[] vec = src.get(0, x);
 			double x1 = vec[0], y1 = vec[1], x2 = vec[2], y2 = vec[3];
@@ -375,13 +360,13 @@ public class FindMyDoorActivity extends Activity implements
 			Point end = new Point(x2, y2);
 
 			try {
-				dst.add(new Line(start, end));
+				dstList.add(new Line(start, end));
 			} catch (RuntimeException e) {
-
+				// do nothing
 			}
 		}
 
-		return dst;
+		return dstList;
 	}
 
 	private Mat printMat(Mat img) {
@@ -424,55 +409,7 @@ public class FindMyDoorActivity extends Activity implements
 		Core.line(image, door.getP4(), door.getP1(), doorColor, 4);
 	}
 
-	private Door doorDetect(Line line1, Line line2, Line line3, Line line4) {
-		Door detectedDoor = null;
 
-		try {
-			detectedDoor = new Door(line1, line2, line3, line4);
-		} catch (RuntimeException re) {
-			// do nothing
-			return null;
-		}
-
-		// // Compare with edge img
-		// double FR12 = calculateFillRatio(detectedDoor.getP1(),
-		// detectedDoor.getP2());
-		//
-		// if (FR12 < Measure.FRThresL) {
-		// return null;
-		// }
-		// Log.d(TAG, "fill ratio 12: " + FR12);
-		//
-		// double FR23 = calculateFillRatio(detectedDoor.getP2(),
-		// detectedDoor.getP3());
-		//
-		// if (FR23 < Measure.FRThresL) {
-		// return null;
-		// }
-		//
-		// double FR34 = calculateFillRatio(detectedDoor.getP3(),
-		// detectedDoor.getP4());
-		//
-		// if (FR34 < Measure.FRThresL) {
-		// return null;
-		// }
-		//
-		// double FR41 = calculateFillRatio(detectedDoor.getP4(),
-		// detectedDoor.getP1());
-		// Log.d(TAG, "fillRatio41: " + FR41);
-		//
-		// if (FR41 < Measure.FRThresL) {
-		// return null;
-		// }
-		//
-		// double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
-		// if (avgFR < Measure.FRThresH)
-		// return null;
-		//
-		// detectedDoor.setAvgFillRatio(avgFR);
-
-		return detectedDoor;
-	}
 
 	/*
 	 * Check if one of rectangles formed by points p1,p2,p3,p4 is a door. The
@@ -489,41 +426,42 @@ public class FindMyDoorActivity extends Activity implements
 		}
 
 		// Compare with edge img
-		// double FR12 = calculateFillRatio(detectedDoor.getP1(),
-		// detectedDoor.getP2());
-		//
-		// if (FR12 < Measure.FRThresL) {
-		// return null;
-		// }
-		// Log.d(TAG, "fill ratio 12: " + FR12);
-		//
-		// double FR23 = calculateFillRatio(detectedDoor.getP2(),
-		// detectedDoor.getP3());
-		//
-		// if (FR23 < Measure.FRThresL) {
-		// return null;
-		// }
-		//
-		// double FR34 = calculateFillRatio(detectedDoor.getP3(),
-		// detectedDoor.getP4());
-		//
-		// if (FR34 < Measure.FRThresL) {
-		// return null;
-		// }
-		//
-		// double FR41 = calculateFillRatio(detectedDoor.getP4(),
-		// detectedDoor.getP1());
-		// Log.d(TAG, "fillRatio41: " + FR41);
-		//
-		// if (FR41 < Measure.FRThresL) {
-		// return null;
-		// }
-		//
-		// double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
-		// if (avgFR < Measure.FRThresH)
-		// return null;
-		//
-		// detectedDoor.setAvgFillRatio(avgFR);
+//		double FR12 = calculateFillRatio(detectedDoor.getP1(),
+//				detectedDoor.getP2());
+//
+//		if (FR12 < Measure.FRThresL) {
+//			return null;
+//		}
+////		Log.d(TAG, "fill ratio 12: " + FR12);
+//
+//		double FR23 = calculateFillRatio(detectedDoor.getP2(),
+//				detectedDoor.getP3());
+//
+//		if (FR23 < Measure.FRThresL) {
+//			return null;
+//		}
+//
+//		double FR34 = calculateFillRatio(detectedDoor.getP3(),
+//				detectedDoor.getP4());
+//
+//		if (FR34 < Measure.FRThresL) {
+//			return null;
+//		}
+//
+//		double FR41 = calculateFillRatio(detectedDoor.getP4(),
+//				detectedDoor.getP1());
+////		Log.d(TAG, "fillRatio41: " + FR41);
+//
+//		if (FR41 < Measure.FRThresL) {
+//			return null;
+//		}
+//
+//		double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
+//		Log.w(TAG, "AVGfr: "+avgFR);
+//		if (avgFR < Measure.FRThresH)
+//			return null;
+//
+//		detectedDoor.setAvgFillRatio(avgFR);
 
 		return detectedDoor;
 	}
@@ -532,7 +470,7 @@ public class FindMyDoorActivity extends Activity implements
 		Mat lineImg = Mat.zeros(mEdit.height(), mEdit.width(), CvType.CV_32FC1);
 
 		Scalar white = new Scalar(255, 255, 255);
-		int thickness = 5;
+		int thickness = 2;
 		Core.line(lineImg, pA, pB, white, thickness);
 
 		int overLapAB = 0, lenghtAb = 0; // lenght px bianchi nella linea che ho
@@ -546,8 +484,7 @@ public class FindMyDoorActivity extends Activity implements
 				Math.min(pA.y, pB.y)), roiSize);
 
 		Mat lineCrop = lineImg.submat(roi);
-
-		Mat editCrop = mEdit.submat(roi);
+		Mat allLinesCrop = mLine.submat(roi);
 
 		for (int i = 0; i < roiSize.width; i++) {
 			for (int j = 0; j < roiSize.height; j++) {
@@ -562,14 +499,14 @@ public class FindMyDoorActivity extends Activity implements
 				}
 				lenghtAb++;
 
-				if (editCrop.get(j, i)[0] != 0) {
+				if (allLinesCrop.get(j, i)[0] != 0) {
 					overLapAB++;
 				}
 			}
 		}
 
 		lineCrop.release();
-		editCrop.release();
+		allLinesCrop.release();
 
 		if (overLapAB == 0) {
 			return 0;
@@ -578,7 +515,7 @@ public class FindMyDoorActivity extends Activity implements
 		double fillRatio = (double) overLapAB / (lenghtAb / thickness);
 		if (fillRatio > 0.3) {
 			Log.w(TAG, "overLap :" + fillRatio);
-			Core.line(mReturn, pA, pB, white, 4);
+			Core.line(mReturn, pA, pB, white, 6);
 		}
 
 		return fillRatio;

@@ -6,7 +6,7 @@ public class Line {
 	public Point start, end;
 	public double dir, siz;
 	private boolean horizontalOriented;
-	
+
 	public Line(Point start, Point end) {
 		this.start = start;
 		this.end = end;
@@ -17,18 +17,12 @@ public class Line {
 			// lato corto
 			horizontalOriented = true;
 			siz = Door.calcRelDistance(start, end);
-			
-			if(siz > Measure.widthThresL && siz < Measure.widthThresH ){
-				return;
-			}
+			return;
 		} else if (dir > Measure.dirThresH) {
 			// lato lungo
 			horizontalOriented = false;
 			siz = Door.calcRelDistance(start, end);
-
-			if(siz > Measure.heightThresL && siz < Measure.heightThresH ){
-				return;
-			}
+			return;
 		}
 
 		throw new RuntimeException("Linea non utile");
@@ -55,6 +49,5 @@ public class Line {
 	public boolean isHorizontal() {
 		return horizontalOriented;
 	}
-
 
 }

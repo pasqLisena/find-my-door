@@ -81,12 +81,12 @@ public class Door implements Comparable<Door> {
 				&& l3.isConsecutive(l4) && l4.isConsecutive(l1)))
 			throw noDoorException;
 
-		if(Math.abs(l2.dir - l4.dir)> Measure.parallelThres)
+		if (Math.abs(l2.dir - l4.dir) > Measure.parallelThres)
 			throw noDoorException;
 
-		double ratio = (l4.siz+l2.siz)/(l3.siz+l1.siz);
-		
-		if(ratio < Measure.HWThresL || ratio > Measure.HWThresH)
+		double ratio = (l4.siz + l2.siz) / (l3.siz + l1.siz);
+
+		if (ratio < Measure.HWThresL || ratio > Measure.HWThresH)
 			throw noDoorException;
 	}
 
@@ -135,48 +135,57 @@ public class Door implements Comparable<Door> {
 			// commute the sides
 			// return checkGeometry(p2, p3, p4, p1);
 			Point temp = p1;
-			p1 = p2;
-			p2 = p3;
-			p3 = p4;
-			p4 = temp;
+			this.p1 = p2;
+			this.p2 = p3;
+			this.p3 = p4;
+			this.p4 = temp;
 
 			siz41 = siz12;
 			siz12 = calcRelDistance(p1, p2);
 		}
 
-		double cSize12 = siz12 - Measure.heightThresL;
-		double cSize41 = siz41 - Measure.widthThresH;
-		if (cSize12 < 0 || cSize41 > 0) {
-			return false;
-		}
-
 		double dir12 = calcDirection(p1, p2);
 		double dir41 = calcDirection(p1, p4);
-
-		double cDir12 = dir12 - Measure.dirThresH;
-		double cDir41 = dir41 - Measure.dirThresL;
-		if (cDir12 < 0 || cDir41 > 0) {
-			return false;
-		}
-
-		double siz23 = calcRelDistance(p2, p3);
 		double dir23 = calcDirection(p2, p3);
-		double siz34 = calcRelDistance(p3, p4);
 		double dir34 = calcDirection(p3, p4);
 
-		double cSiz34 = siz34 - Measure.heightThresH;
-		double cSiz23 = siz23 - Measure.widthThresL;
 		double cDir23 = dir23 - Measure.dirThresL;
 		double cDir34 = dir34 - Measure.dirThresH;
 		double cParal = Math.abs(dir12 - dir34) - Measure.parallelThres;
 
-		if (cSiz34 > 0 || cSiz23 < 0 || cDir23 > 0 || cDir34 < 0 || cParal > 0) {
+		double cDir12 = dir12 - Measure.dirThresH;
+		double cDir41 = dir41 - Measure.dirThresL;
+		if (cDir12 < 0 || cDir41 > 0 || cDir23 > 0 || cDir34 < 0 || cParal > 0) {
+			return false;
+		}
+		// Log.e(TAG, "paral "+cParal);
+
+		double cSize12d = siz12 - Measure.heightThresL;
+		double cSize12u = siz12 - Measure.heightThresH;
+		double cSize41d = siz41 - Measure.widthThresL;
+		double cSize41u = siz41 - Measure.widthThresH;
+		if (cSize12d < 0 || cSize12u > 0 || cSize41d < 0 || cSize41u > 0) {
+			return false;
+		}
+
+		double siz23 = calcRelDistance(p2, p3);
+		double siz34 = calcRelDistance(p3, p4);
+
+		double cSiz34d = siz34 - Measure.heightThresL;
+		double cSiz34u = siz34 - Measure.heightThresH;
+		double cSiz23d = siz23 - Measure.widthThresL;
+		double cSiz23u = siz23 - Measure.widthThresH;
+
+		if (cSiz34d < 0 || cSiz34u > 0 || cSiz23d < 0 || cSiz23u > 0) {
 			return false;
 		}
 
 		double sizRatio = (siz12 + siz34) / (siz23 + siz41);
 		double cSRatioDown = sizRatio - Measure.HWThresL;
 		double cSRatioUp = sizRatio - Measure.HWThresH;
+
+		Log.e(TAG, "siz " + siz12 + " " + siz34 + " " + siz23 + " " + siz41);
+		Log.e(TAG, "ratio " + sizRatio);
 
 		if (cSRatioDown < 0 || cSRatioUp > 0) {
 			return false;
@@ -193,7 +202,8 @@ public class Door implements Comparable<Door> {
 		sizeW /= 1; // (0, 1]
 		dirW /= 90; // [0, 90]
 
-		geomRate = (cSize12 - cSize41 - cSiz34 + cSiz23 + cSRatioDown - cSRatioUp)
+		geomRate = (cSize12d - cSize12u + cSize41d - cSize41u + cSiz34d
+				- cSiz34u + cSiz23d - cSiz23u + cSRatioDown - cSRatioUp)
 				* sizeW + (cDir12 - cDir41 - cDir23 + cDir34 - cParal) * dirW;
 
 		// if here, 1234 is a door
