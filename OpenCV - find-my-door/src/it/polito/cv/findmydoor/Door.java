@@ -16,7 +16,7 @@ public class Door implements Comparable<Door> {
 	private Point p1, p2, p3, p4;
 	private Line l1, l2, l3, l4;
 	private double avgFillRatio;
-	private double geomRate;// punteggio calcolato sui controlli geometrici
+	private double geomRate;// score based on geometry
 
 	public Door(Point p1, Point p2, Point p3, Point p4) {
 		this.p1 = p1;
@@ -112,10 +112,10 @@ public class Door implements Comparable<Door> {
 
 	@Override
 	public int compareTo(Door another) {
-		// pesi per la composizione del rate totale
+		// weight to compute the total score
 		int fillW = 100, geomW = 200;
-		// diminuisco fillW del parametro thickness dell'activity
-		// TODO: sistemare
+		// reduce fillW of the param thickness of the activity
+		// TODO: connect with activity
 		fillW /= 5;
 
 		int rate = (int) (fillW * (this.avgFillRatio - another.avgFillRatio) + geomW
@@ -191,14 +191,14 @@ public class Door implements Comparable<Door> {
 			return false;
 		}
 
-		// pesi per comporre il geomRate
+		// weight to compute geomRate
 		double sizeW = 1, dirW = 2;
 
-		// normalizzazioni per num di elementi
+		// normalize on elements number
 		sizeW /= 6;
 		dirW /= 5;
 
-		// normalizzazioni per range
+		// normalize on range
 		sizeW /= 1; // (0, 1]
 		dirW /= 90; // [0, 90]
 

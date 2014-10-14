@@ -1,3 +1,4 @@
+
 package it.polito.cv.findmydoor;
 
 import org.opencv.core.Point;
@@ -14,12 +15,12 @@ public class Line {
 		dir = Door.calcDirection(start, end);
 
 		if (dir < Measure.dirThresL) {
-			// lato corto
+			// short line
 			horizontalOriented = true;
 			siz = Door.calcRelDistance(start, end);
 			return;
 		} else if (dir > Measure.dirThresH) {
-			// lato lungo
+			// long line
 			horizontalOriented = false;
 			siz = Door.calcRelDistance(start, end);
 			return;

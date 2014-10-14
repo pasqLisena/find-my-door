@@ -38,20 +38,29 @@ public class FindMyDoorActivity extends Activity implements
 		CvCameraViewListener2, OnTouchListener {
 	private static final String TAG = "OCV::Activity";
 	private static final String TAG_CANNY = "OCV::Activity CANNY";
+	private static final Scalar white = new Scalar(255, 255, 255);
 
-	private Mat mRgba; // immagine originale
-	private Mat mEdit; // immagine modificata (canny)
-	private Mat mReturn; // puntatore all'immagine da visualizzare
-	private Mat mLine; // immagine delle linee trovate
+	private Mat mRgba; // original image
+	private Mat mEdit; // work image (canny)
+	private Mat mReturn; // pointer to the image to show
+	private Mat mLine; // founded edge image
 
 	private List<Point> corners;
 
 	private Size imgSize;
-	private double imgDiag; // diagonale
+	private double imgDiag; // diagonal
 
-	private static boolean freeze; // blocca l'immagine inquadrata
+	private static boolean freeze; // stop the image as is
 
-	private CameraBridgeViewBase mOpenCvCameraView; // collegamento alla camera
+	private CameraBridgeViewBase mOpenCvCameraView; // interface to camera
+
+	private double dsRatio;
+
+	private boolean willResize;
+
+	private List<Door> doors;
+	private List<Point> cornersList;
+	private ArrayList<Line> lineList;
 
 	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
 		@Override
@@ -70,14 +79,6 @@ public class FindMyDoorActivity extends Activity implements
 			}
 		}
 	};
-
-	private double dsRatio;
-
-	private boolean willResize;
-
-	private List<Door> doors;
-	private List<Point> cornersList;
-	private ArrayList<Line> lineList;
 
 	public FindMyDoorActivity() {
 		Log.i(TAG, "Instantiated new " + this.getClass());
@@ -178,7 +179,7 @@ public class FindMyDoorActivity extends Activity implements
 	@Override
 	public void onResume() {
 		super.onResume();
-		OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_3, this,
+		OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_10, this,
 				mLoaderCallback);
 	}
 
@@ -208,8 +209,8 @@ public class FindMyDoorActivity extends Activity implements
 	}
 
 	private Mat addBorder(Mat img, int borderSize) {
-		// aggiunge un bordo interno per crere uno spigolo quando quello reale è
-		// nascosto
+		// add an inner white border in order to create a corner
+		// when the real one is occluded
 
 		Size roiSize = new Size(img.width() - borderSize * 2, img.height()
 				- borderSize * 2);
@@ -220,8 +221,7 @@ public class FindMyDoorActivity extends Activity implements
 		Mat mBorder = img.clone();
 
 		Imgproc.copyMakeBorder(mCrop, mBorder, borderSize, borderSize,
-				borderSize, borderSize, Imgproc.BORDER_ISOLATED, new Scalar(
-						255, 255, 255));
+				borderSize, borderSize, Imgproc.BORDER_ISOLATED, white);
 
 		return mBorder;
 	}
@@ -259,7 +259,7 @@ public class FindMyDoorActivity extends Activity implements
 		lineList = matToListLines(mLine);
 		// Detect corners
 		cornersList = new ArrayList<Point>();
-		
+
 		mLine = Mat.zeros(mEdit.height(), mEdit.width(), CvType.CV_32FC1);
 		Scalar white = new Scalar(255, 255, 255);
 		int thickness = 1;
@@ -351,7 +351,7 @@ public class FindMyDoorActivity extends Activity implements
 
 	private ArrayList<Line> matToListLines(Mat src) {
 		ArrayList<Line> dstList = new ArrayList<Line>();
-		
+
 		for (int x = 0; x < src.cols(); x++) {
 			double[] vec = src.get(0, x);
 			double x1 = vec[0], y1 = vec[1], x2 = vec[2], y2 = vec[3];
@@ -409,8 +409,6 @@ public class FindMyDoorActivity extends Activity implements
 		Core.line(image, door.getP4(), door.getP1(), doorColor, 4);
 	}
 
-
-
 	/*
 	 * Check if one of rectangles formed by points p1,p2,p3,p4 is a door. The
 	 * four point can be not in order.
@@ -426,42 +424,42 @@ public class FindMyDoorActivity extends Activity implements
 		}
 
 		// Compare with edge img
-//		double FR12 = calculateFillRatio(detectedDoor.getP1(),
-//				detectedDoor.getP2());
-//
-//		if (FR12 < Measure.FRThresL) {
-//			return null;
-//		}
-////		Log.d(TAG, "fill ratio 12: " + FR12);
-//
-//		double FR23 = calculateFillRatio(detectedDoor.getP2(),
-//				detectedDoor.getP3());
-//
-//		if (FR23 < Measure.FRThresL) {
-//			return null;
-//		}
-//
-//		double FR34 = calculateFillRatio(detectedDoor.getP3(),
-//				detectedDoor.getP4());
-//
-//		if (FR34 < Measure.FRThresL) {
-//			return null;
-//		}
-//
-//		double FR41 = calculateFillRatio(detectedDoor.getP4(),
-//				detectedDoor.getP1());
-////		Log.d(TAG, "fillRatio41: " + FR41);
-//
-//		if (FR41 < Measure.FRThresL) {
-//			return null;
-//		}
-//
-//		double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
-//		Log.w(TAG, "AVGfr: "+avgFR);
-//		if (avgFR < Measure.FRThresH)
-//			return null;
-//
-//		detectedDoor.setAvgFillRatio(avgFR);
+		// double FR12 = calculateFillRatio(detectedDoor.getP1(),
+		// detectedDoor.getP2());
+		//
+		// if (FR12 < Measure.FRThresL) {
+		// return null;
+		// }
+		// // Log.d(TAG, "fill ratio 12: " + FR12);
+		//
+		// double FR23 = calculateFillRatio(detectedDoor.getP2(),
+		// detectedDoor.getP3());
+		//
+		// if (FR23 < Measure.FRThresL) {
+		// return null;
+		// }
+		//
+		// double FR34 = calculateFillRatio(detectedDoor.getP3(),
+		// detectedDoor.getP4());
+		//
+		// if (FR34 < Measure.FRThresL) {
+		// return null;
+		// }
+		//
+		// double FR41 = calculateFillRatio(detectedDoor.getP4(),
+		// detectedDoor.getP1());
+		// // Log.d(TAG, "fillRatio41: " + FR41);
+		//
+		// if (FR41 < Measure.FRThresL) {
+		// return null;
+		// }
+		//
+		// double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
+		// Log.w(TAG, "AVGfr: "+avgFR);
+		// if (avgFR < Measure.FRThresH)
+		// return null;
+		//
+		// detectedDoor.setAvgFillRatio(avgFR);
 
 		return detectedDoor;
 	}
@@ -473,11 +471,10 @@ public class FindMyDoorActivity extends Activity implements
 		int thickness = 2;
 		Core.line(lineImg, pA, pB, white, thickness);
 
-		int overLapAB = 0, lenghtAb = 0; // lenght px bianchi nella linea che ho
-											// disegnato
+		int overLapAB = 0, lenghtAb = 0; // length white px in this line
 
 		double linePx = 0, oldLinePx;
-		// oldpix = px precedente a quello che sto considerando
+		// oldpix = previous px
 
 		Size roiSize = new Size(Math.abs(pA.x - pB.x), Math.abs(pA.y - pB.y));
 		Rect roi = new Rect(new Point(Math.min(pA.x, pB.x),
@@ -492,7 +489,7 @@ public class FindMyDoorActivity extends Activity implements
 				oldLinePx = linePx;
 				linePx = lineCrop.get(j, i)[0];
 				if (linePx == 0) {
-					if (oldLinePx != 0) // ho già passato il bordo
+					if (oldLinePx != 0) // border passed
 						break;
 					else
 						continue;
@@ -523,6 +520,7 @@ public class FindMyDoorActivity extends Activity implements
 
 	@Override
 	public boolean onTouch(View v, MotionEvent event) {
+		v.performClick();
 		freeze = !freeze;
 		return false;
 	}
