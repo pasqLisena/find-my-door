@@ -4,6 +4,9 @@ import org.opencv.core.Size;
 
 public class Measure {
 	
+	// computation is done every [waitingFrames] seconds
+	public static final int waitingFrames = 30;
+	
 	/************ IMAGE *******************/
 	
 	// work image dimensions
@@ -21,7 +24,7 @@ public class Measure {
 	// Params Hough Line Transform
 	public static int houghRho = 1;
 	public static double houghTheta = Math.PI/180;
-	public static int houghThreshold = 80;
+	public static int houghThreshold = 50;
 	public static int houghMinLineSize = 40;
 	public static int houghLineGap = 20;
 
@@ -43,8 +46,8 @@ public class Measure {
 	public static double maxPointGap = 0.01; // 1% of camera diag (4px)
 	
 	// Params geometrici
-	public static double heightThresL = 0.3; // 50% of camera diag
-	public static double heightThresH = 0.7; // 80% of camera diag
+	public static double heightThresL = 0.3; // 30% of camera diag
+	public static double heightThresH = 0.7; // 70% of camera diag
 	public static double widthThresL = 0.1; // 10% of camera diag
 	public static double widthThresH = 0.8; // 80% of camera diag
 

@@ -6,7 +6,7 @@ import org.opencv.core.Point;
 public class Line {
 	public Point start, end;
 	public double dir, siz;
-	private boolean horizontalOriented;
+	public boolean isHorizontal;
 
 	public Line(Point start, Point end) {
 		this.start = start;
@@ -16,17 +16,17 @@ public class Line {
 
 		if (dir < Measure.dirThresL) {
 			// short line
-			horizontalOriented = true;
+			isHorizontal = true;
 			siz = Door.calcRelDistance(start, end);
 			return;
 		} else if (dir > Measure.dirThresH) {
 			// long line
-			horizontalOriented = false;
+			isHorizontal = false;
 			siz = Door.calcRelDistance(start, end);
 			return;
 		}
 
-		throw new RuntimeException("Linea non utile");
+		throw new RuntimeException("Useless line.");
 	}
 
 	public boolean isConsecutive(Line other) {
@@ -46,9 +46,4 @@ public class Line {
 
 		return xGap < Measure.maxPointGap && yGap < Measure.maxPointGap;
 	}
-
-	public boolean isHorizontal() {
-		return horizontalOriented;
-	}
-
 }

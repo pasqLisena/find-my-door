@@ -49,22 +49,22 @@ public class Door implements Comparable<Door> {
 		List<Line> horLines = new ArrayList<Line>();
 		List<Line> verLines = new ArrayList<Line>();
 
-		if (line1.isHorizontal())
+		if (line1.isHorizontal)
 			horLines.add(line1);
 		else
 			verLines.add(line1);
 
-		if (line2.isHorizontal())
+		if (line2.isHorizontal)
 			horLines.add(line2);
 		else
 			verLines.add(line2);
 
-		if (line3.isHorizontal())
+		if (line3.isHorizontal)
 			horLines.add(line3);
 		else
 			verLines.add(line3);
 
-		if (line4.isHorizontal())
+		if (line4.isHorizontal)
 			horLines.add(line4);
 		else
 			verLines.add(line4);

@@ -62,25 +62,8 @@ public class FindMyDoorActivity extends Activity implements
 	private List<Point> cornersList;
 	private ArrayList<Line> lineList;
 
-	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
-		@Override
-		public void onManagerConnected(int status) {
-			switch (status) {
-			case LoaderCallbackInterface.SUCCESS: {
-				Log.i(TAG, "OpenCV loaded successfully");
-				mOpenCvCameraView.enableView();
-				mOpenCvCameraView.setOnTouchListener(FindMyDoorActivity.this);
-			}
-				break;
-			default: {
-				super.onManagerConnected(status);
-			}
-				break;
-			}
-		}
-	};
-
 	public FindMyDoorActivity() {
+		super();
 		Log.i(TAG, "Instantiated new " + this.getClass());
 	}
 
@@ -179,8 +162,26 @@ public class FindMyDoorActivity extends Activity implements
 	@Override
 	public void onResume() {
 		super.onResume();
-		OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_10, this,
-				mLoaderCallback);
+		/* check if OpenCVManager is installed on the device */
+		OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_9, this,
+				new BaseLoaderCallback(this) {
+					@Override
+					public void onManagerConnected(int status) {
+						switch (status) {
+						case LoaderCallbackInterface.SUCCESS: {
+							Log.i(TAG, "OpenCV loaded successfully");
+							mOpenCvCameraView.enableView();
+							mOpenCvCameraView
+									.setOnTouchListener(FindMyDoorActivity.this);
+						}
+							break;
+						default: {
+							super.onManagerConnected(status);
+						}
+							break;
+						}
+					}
+				});
 	}
 
 	public void onDestroy() {
@@ -199,7 +200,7 @@ public class FindMyDoorActivity extends Activity implements
 		mRgba = new Mat(imgSize, CvType.CV_8UC4);
 		corners = new ArrayList<Point>();
 
-		Log.d(TAG, "width: " + height);
+		Log.d(TAG, "height: " + height);
 		Log.d(TAG, "width: " + width);
 		freeze = false;
 	}
@@ -226,11 +227,17 @@ public class FindMyDoorActivity extends Activity implements
 		return mBorder;
 	}
 
+	private int waited = 0;
 	public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
+		if(waited < Measure.waitingFrames){
+			waited++;
+			return mReturn;
+		}
+		waited = 0;
+		
 		if (freeze) {
 			Core.putText(mReturn, " FREEZED ", new Point(10, 10),
 					Core.FONT_HERSHEY_PLAIN, 1.0, new Scalar(0, 0, 255));
-			return mReturn;
 		}
 		mRgba = inputFrame.rgba();
 		mEdit = new Mat();
@@ -261,7 +268,6 @@ public class FindMyDoorActivity extends Activity implements
 		cornersList = new ArrayList<Point>();
 
 		mLine = Mat.zeros(mEdit.height(), mEdit.width(), CvType.CV_32FC1);
-		Scalar white = new Scalar(255, 255, 255);
 		int thickness = 1;
 
 		for (int i = 0; i < lineList.size(); i++) {
@@ -276,6 +282,7 @@ public class FindMyDoorActivity extends Activity implements
 				Point p2a = line2.start, p2b = line2.end;
 				int x3 = (int) p2a.x, y3 = (int) p2a.y, x4 = (int) p2b.x, y4 = (int) p2b.y;
 
+				// find intersection
 				float d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
 
 				if (d != 0) {
@@ -326,7 +333,7 @@ public class FindMyDoorActivity extends Activity implements
 
 		// Up-sampling mEdit (edge image)
 		if (willResize) {
-			// down-sampling points position
+			// up-sampling points position
 			for (Point c : cornersList) {
 				c.x = dsRatio * (c.x);
 				c.y = dsRatio * (c.y);
@@ -349,6 +356,10 @@ public class FindMyDoorActivity extends Activity implements
 		return printMat(mReturn);
 	}
 
+	/*
+	 * Convert the output Mat(1XNX4) of HoughLineP
+	 * in an array of lines.
+	 */
 	private ArrayList<Line> matToListLines(Mat src) {
 		ArrayList<Line> dstList = new ArrayList<Line>();
 
@@ -362,10 +373,9 @@ public class FindMyDoorActivity extends Activity implements
 			try {
 				dstList.add(new Line(start, end));
 			} catch (RuntimeException e) {
-				// do nothing
+				// do nothing --> not useful line
 			}
 		}
-
 		return dstList;
 	}
 
@@ -501,7 +511,6 @@ public class FindMyDoorActivity extends Activity implements
 				}
 			}
 		}
-
 		lineCrop.release();
 		allLinesCrop.release();
 
@@ -524,5 +533,4 @@ public class FindMyDoorActivity extends Activity implements
 		freeze = !freeze;
 		return false;
 	}
-
 }
