@@ -61,6 +61,7 @@ public class FindMyDoorActivity extends Activity implements
 	private List<Door> doors;
 	private List<Point> cornersList;
 	private ArrayList<Line> lineList;
+	private int waited;
 
 	public FindMyDoorActivity() {
 		super();
@@ -203,6 +204,8 @@ public class FindMyDoorActivity extends Activity implements
 		Log.d(TAG, "height: " + height);
 		Log.d(TAG, "width: " + width);
 		freeze = false;
+
+		waited = Measure.waitingFrames;
 	}
 
 	public void onCameraViewStopped() {
@@ -227,18 +230,17 @@ public class FindMyDoorActivity extends Activity implements
 		return mBorder;
 	}
 
-	private int waited = 0;
 	public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
-		if(waited < Measure.waitingFrames){
-			waited++;
-			return mReturn;
-		}
-		waited = 0;
-		
 		if (freeze) {
 			Core.putText(mReturn, " FREEZED ", new Point(10, 10),
 					Core.FONT_HERSHEY_PLAIN, 1.0, new Scalar(0, 0, 255));
 		}
+
+		if (waited < Measure.waitingFrames) {
+			waited++;
+			return printMat(inputFrame.rgba());
+		}
+		waited = 0;
 		mRgba = inputFrame.rgba();
 		mEdit = new Mat();
 		corners.clear();
@@ -264,10 +266,11 @@ public class FindMyDoorActivity extends Activity implements
 				Measure.houghLineGap);
 
 		lineList = matToListLines(mLine);
+		Log.i(TAG, lineList.size()+" lines detected");
 		// Detect corners
 		cornersList = new ArrayList<Point>();
 
-		mLine = Mat.zeros(mEdit.height(), mEdit.width(), CvType.CV_32FC1);
+		mLine = Mat.zeros(mEdit.height(), mEdit.width(), mEdit.type());
 		int thickness = 1;
 
 		for (int i = 0; i < lineList.size(); i++) {
@@ -279,6 +282,8 @@ public class FindMyDoorActivity extends Activity implements
 
 			for (int j = i + 1; j < lineList.size(); j++) {
 				Line line2 = lineList.get(j);
+				if(line2.isHorizontal == line1.isHorizontal)
+					continue;
 				Point p2a = line2.start, p2b = line2.end;
 				int x3 = (int) p2a.x, y3 = (int) p2a.y, x4 = (int) p2b.x, y4 = (int) p2b.y;
 
@@ -323,6 +328,7 @@ public class FindMyDoorActivity extends Activity implements
 						if (newDoor != null) {
 							Log.d(TAG, "Door found!");
 							doors.add(newDoor);
+							break;
 						}
 					}
 				}
@@ -335,30 +341,30 @@ public class FindMyDoorActivity extends Activity implements
 		if (willResize) {
 			// up-sampling points position
 			for (Point c : cornersList) {
-				c.x = dsRatio * (c.x);
-				c.y = dsRatio * (c.y);
+				c.x = imgSize.width / Measure.dsSize.width * (c.x);
+				c.y = imgSize.height / Measure.dsSize.height * (c.y);
 			}
 
 			for (Line l : lineList) {
 				Point[] pts = { l.start, l.end };
 				for (Point p : pts) {
-					p.x = dsRatio * (p.x);
-					p.y = dsRatio * (p.y);
+					p.x = imgSize.width / Measure.dsSize.width * (p.x);
+					p.y = imgSize.height / Measure.dsSize.height * (p.y);
 				}
 			}
 
 			Imgproc.resize(mEdit, mEdit, imgSize);
+			Imgproc.resize(mLine, mLine, imgSize);
 
 		}
 
-		mReturn = mEdit;
+		mReturn = mRgba;
 
 		return printMat(mReturn);
 	}
 
 	/*
-	 * Convert the output Mat(1XNX4) of HoughLineP
-	 * in an array of lines.
+	 * Convert the output Mat(1XNX4) of HoughLineP in an array of lines.
 	 */
 	private ArrayList<Line> matToListLines(Mat src) {
 		ArrayList<Line> dstList = new ArrayList<Line>();
@@ -384,30 +390,35 @@ public class FindMyDoorActivity extends Activity implements
 			Imgproc.cvtColor(img, img, Imgproc.COLOR_GRAY2RGBA);
 		}
 
-		for (int i = 0; i < lineList.size(); i++) {
-			Line line = lineList.get(i);
-			Point p1 = line.start;
-			Point p2 = line.end;
+		if (lineList != null) {
+			for (int i = 0; i < lineList.size(); i++) {
+				Line line = lineList.get(i);
+				Point p1 = line.start;
+				Point p2 = line.end;
 
-			Scalar yellow = new Scalar(0, 255, 255);
-			Core.line(img, p1, p2, yellow, 3);
+				Scalar yellow = new Scalar(0, 255, 255);
+				Core.line(img, p1, p2, yellow, 3);
+			}
 		}
-
 		// if (doors.size() > 0) {
 		// // disegna la porta più probabile
 		// drawDoor(img, doors.get(0));
 		// }
-		for (Door door : doors) {
-			drawDoor(img, door);
+
+		if (doors != null) {
+			for (Door door : doors) {
+				drawDoor(img, door);
+			}
 		}
 
 		// Draw Corners
-		for (Point c : cornersList) {
-			Core.circle(img, c, 15, new Scalar(255, 0, 0), 2, 8, 0);
-			Core.putText(mRgba, " " + cornersList.indexOf(c), c,
-					Core.FONT_HERSHEY_PLAIN, 1.0, new Scalar(0, 0, 255));
+		if (cornersList != null) {
+			for (Point c : cornersList) {
+				Core.circle(img, c, 15, new Scalar(255, 0, 0), 2, 8, 0);
+//				Core.putText(mRgba, " " + cornersList.indexOf(c), c,
+//						Core.FONT_HERSHEY_PLAIN, 1.0, new Scalar(0, 0, 255));
+			}
 		}
-
 		return img;
 	}
 
@@ -433,43 +444,44 @@ public class FindMyDoorActivity extends Activity implements
 			return null;
 		}
 
+		Log.i(TAG, "Geometry ok");
 		// Compare with edge img
-		// double FR12 = calculateFillRatio(detectedDoor.getP1(),
-		// detectedDoor.getP2());
-		//
-		// if (FR12 < Measure.FRThresL) {
-		// return null;
-		// }
-		// // Log.d(TAG, "fill ratio 12: " + FR12);
-		//
-		// double FR23 = calculateFillRatio(detectedDoor.getP2(),
-		// detectedDoor.getP3());
-		//
-		// if (FR23 < Measure.FRThresL) {
-		// return null;
-		// }
-		//
-		// double FR34 = calculateFillRatio(detectedDoor.getP3(),
-		// detectedDoor.getP4());
-		//
-		// if (FR34 < Measure.FRThresL) {
-		// return null;
-		// }
-		//
-		// double FR41 = calculateFillRatio(detectedDoor.getP4(),
-		// detectedDoor.getP1());
-		// // Log.d(TAG, "fillRatio41: " + FR41);
-		//
-		// if (FR41 < Measure.FRThresL) {
-		// return null;
-		// }
-		//
-		// double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
-		// Log.w(TAG, "AVGfr: "+avgFR);
-		// if (avgFR < Measure.FRThresH)
-		// return null;
-		//
-		// detectedDoor.setAvgFillRatio(avgFR);
+		double FR12 = calculateFillRatio(detectedDoor.getP1(),
+				detectedDoor.getP2());
+
+		if (FR12 < Measure.FRThresL) {
+			return null;
+		}
+		// Log.d(TAG, "fill ratio 12: " + FR12);
+
+		double FR23 = calculateFillRatio(detectedDoor.getP2(),
+				detectedDoor.getP3());
+
+		if (FR23 < Measure.FRThresL) {
+			return null;
+		}
+
+		double FR34 = calculateFillRatio(detectedDoor.getP3(),
+				detectedDoor.getP4());
+
+		if (FR34 < Measure.FRThresL) {
+			return null;
+		}
+
+		double FR41 = calculateFillRatio(detectedDoor.getP4(),
+				detectedDoor.getP1());
+		// Log.d(TAG, "fillRatio41: " + FR41);
+
+		if (FR41 < Measure.FRThresL) {
+			return null;
+		}
+
+		double avgFR = (FR12 + FR23 + FR34 + FR41) / 4;
+		Log.w(TAG, "AVGfr: " + avgFR);
+		if (avgFR < Measure.FRThresH)
+			return null;
+
+		detectedDoor.setAvgFillRatio(avgFR);
 
 		return detectedDoor;
 	}
@@ -481,7 +493,7 @@ public class FindMyDoorActivity extends Activity implements
 		int thickness = 2;
 		Core.line(lineImg, pA, pB, white, thickness);
 
-		int overLapAB = 0, lenghtAb = 0; // length white px in this line
+		int overLapAB = 0, lengthAb = 0; // length white px in this line
 
 		double linePx = 0, oldLinePx;
 		// oldpix = previous px
@@ -504,7 +516,7 @@ public class FindMyDoorActivity extends Activity implements
 					else
 						continue;
 				}
-				lenghtAb++;
+				lengthAb++;
 
 				if (allLinesCrop.get(j, i)[0] != 0) {
 					overLapAB++;
@@ -514,15 +526,15 @@ public class FindMyDoorActivity extends Activity implements
 		lineCrop.release();
 		allLinesCrop.release();
 
+		double fillRatio;
 		if (overLapAB == 0) {
-			return 0;
-		}
-
-		double fillRatio = (double) overLapAB / (lenghtAb / thickness);
-		if (fillRatio > 0.3) {
-			Log.w(TAG, "overLap :" + fillRatio);
-			Core.line(mReturn, pA, pB, white, 6);
-		}
+			fillRatio = 0;
+		} else
+			fillRatio = (double) overLapAB / (lengthAb / thickness);
+		// if (fillRatio > 0.3) {
+		Log.w(TAG, "overLap :" + fillRatio);
+		// Core.line(mReturn, pA, pB, white, 6);
+		// }
 
 		return fillRatio;
 	}

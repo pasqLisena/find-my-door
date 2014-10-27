@@ -184,8 +184,8 @@ public class Door implements Comparable<Door> {
 		double cSRatioDown = sizRatio - Measure.HWThresL;
 		double cSRatioUp = sizRatio - Measure.HWThresH;
 
-		Log.e(TAG, "siz " + siz12 + " " + siz34 + " " + siz23 + " " + siz41);
-		Log.e(TAG, "ratio " + sizRatio);
+//		Log.v(TAG, "siz " + siz12 + " " + siz34 + " " + siz23 + " " + siz41);
+//		Log.v(TAG, "ratio " + sizRatio);
 
 		if (cSRatioDown < 0 || cSRatioUp > 0) {
 			return false;
@@ -234,7 +234,7 @@ public class Door implements Comparable<Door> {
 		double dfX = i.x - j.x;
 		double dfY = i.y - j.y;
 		double dfRatio = Math.abs(dfX / dfY);
-		return Math.atan(dfRatio) * 180 / Math.PI;
+		return Math.abs(Math.atan(dfRatio) * 180 / Math.PI);
 	}
 
 }

@@ -1,4 +1,3 @@
-
 package it.polito.cv.findmydoor;
 
 import org.opencv.core.Point;
@@ -30,6 +29,9 @@ public class Line {
 	}
 
 	public boolean isConsecutive(Line other) {
+		if (other.isHorizontal == this.isHorizontal)
+			return false;
+		
 		boolean a, b, c, d;
 
 		a = checkProximity(this.start, other.start);
