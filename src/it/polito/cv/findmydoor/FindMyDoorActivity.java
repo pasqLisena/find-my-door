@@ -43,7 +43,7 @@ public class FindMyDoorActivity extends Activity implements
 	private Mat mRgba; // original image
 	private Mat mEdit; // work image (canny)
 	private Mat mReturn; // pointer to the image to show
-	private Mat mLine; // founded edge image
+	private Mat mLine; // found edge image
 
 	private List<Point> corners;
 
@@ -231,7 +231,7 @@ public class FindMyDoorActivity extends Activity implements
 	}
 
 	public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
-		if (freeze) {
+		if (freeze && mReturn != null) {
 			Core.putText(mReturn, " FREEZED ", new Point(10, 10),
 					Core.FONT_HERSHEY_PLAIN, 1.0, new Scalar(0, 0, 255));
 		}
@@ -266,65 +266,33 @@ public class FindMyDoorActivity extends Activity implements
 				Measure.houghLineGap);
 
 		lineList = matToListLines(mLine);
-		Log.i(TAG, lineList.size()+" lines detected");
+		Log.i(TAG, lineList.size() + " lines detected");
 		// Detect corners
 		cornersList = new ArrayList<Point>();
 
 		mLine = Mat.zeros(mEdit.height(), mEdit.width(), mEdit.type());
-		int thickness = 1;
-
-		for (int i = 0; i < lineList.size(); i++) {
-			Line line1 = lineList.get(i);
-			Point p1a = line1.start, p1b = line1.end;
-			int x1 = (int) p1a.x, y1 = (int) p1a.y, x2 = (int) p1b.x, y2 = (int) p1b.y;
-
-			Core.line(mLine, p1a, p1b, white, thickness);
-
-			for (int j = i + 1; j < lineList.size(); j++) {
-				Line line2 = lineList.get(j);
-				if(line2.isHorizontal == line1.isHorizontal)
-					continue;
-				Point p2a = line2.start, p2b = line2.end;
-				int x3 = (int) p2a.x, y3 = (int) p2a.y, x4 = (int) p2b.x, y4 = (int) p2b.y;
-
-				// find intersection
-				float d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-
-				if (d != 0) {
-					int ix = (int) (((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2)
-							* (x3 * y4 - y3 * x4)) / d);
-					int iy = (int) (((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2)
-							* (x3 * y4 - y3 * x4)) / d);
-
-					if (ix > 0 && ix < mEdit.width() && iy > 0
-							&& iy < mEdit.height()) {
-						cornersList.add(new Point(ix, iy));
-					}
-				}
-
-			}
-		}
-
-		int cornersSize = cornersList.size();
+		int thickness = 2;
 
 		// Detect Doors
 		doors = new ArrayList<Door>();
 
-		// For each point
-		for (int i = 0; i < cornersSize; i++) {
-			Point p1 = cornersList.get(i);
-			// Consider each successive point
-			for (int j = i + 1; j < cornersSize; j++) {
-				Point p2 = cornersList.get(j);
+		for (int i = 0; i < lineList.size(); i++) {
+			Line line1 = lineList.get(i);
+			Core.line(mLine, line1.start, line1.end, white, thickness);
+		}
+		
+		for (int i = 0; i < lineList.size(); i++) {
+			Line line1 = lineList.get(i);
 
-				// and so on with 3rd and 4th points
-				for (int l = j + 1; l < cornersSize; l++) {
-					Point p3 = cornersList.get(l);
+			for (int j = i + 1; j < lineList.size(); j++) {
+				Line line2 = lineList.get(j);
 
-					for (int m = l + 1; m < cornersSize; m++) {
-						Point p4 = cornersList.get(m);
+				for (int k = j + 1; k < lineList.size(); k++) {
+					Line line3 = lineList.get(k);
+					for (int l = k + 1; l < lineList.size(); l++) {
+						Line line4 = lineList.get(l);
 
-						Door newDoor = doorDetect(p1, p2, p3, p4);
+						Door newDoor = doorDetect(line1, line2, line3, line4);
 						if (newDoor != null) {
 							Log.d(TAG, "Door found!");
 							doors.add(newDoor);
@@ -415,8 +383,8 @@ public class FindMyDoorActivity extends Activity implements
 		if (cornersList != null) {
 			for (Point c : cornersList) {
 				Core.circle(img, c, 15, new Scalar(255, 0, 0), 2, 8, 0);
-//				Core.putText(mRgba, " " + cornersList.indexOf(c), c,
-//						Core.FONT_HERSHEY_PLAIN, 1.0, new Scalar(0, 0, 255));
+				// Core.putText(mRgba, " " + cornersList.indexOf(c), c,
+				// Core.FONT_HERSHEY_PLAIN, 1.0, new Scalar(0, 0, 255));
 			}
 		}
 		return img;
@@ -428,6 +396,37 @@ public class FindMyDoorActivity extends Activity implements
 		Core.line(image, door.getP2(), door.getP3(), doorColor, 4);
 		Core.line(image, door.getP3(), door.getP4(), doorColor, 4);
 		Core.line(image, door.getP4(), door.getP1(), doorColor, 4);
+	}
+
+	private Door doorDetect(Line line1, Line line2, Line line3, Line line4) {
+		ArrayList<Line> lineArray = new ArrayList<Line>();
+		lineArray.add(line1);
+		lineArray.add(line2);
+		lineArray.add(line3);
+		lineArray.add(line4);
+
+		Door detectedDoor = null;
+
+		try {
+			detectedDoor = new Door(lineArray);
+		} catch (RuntimeException re) {
+			// do nothing
+			return null;
+		}
+
+		if (isInsideMat(detectedDoor.getP1())
+				&& isInsideMat(detectedDoor.getP2())
+				&& isInsideMat(detectedDoor.getP3())
+				&& isInsideMat(detectedDoor.getP4())) {
+			cornersList.add(detectedDoor.getP1());
+			cornersList.add(detectedDoor.getP2());
+			cornersList.add(detectedDoor.getP3());
+			cornersList.add(detectedDoor.getP4());
+//			return detectedDoor;
+			return fillRatioCheck(detectedDoor);
+		} else
+			return null;
+
 	}
 
 	/*
@@ -445,6 +444,14 @@ public class FindMyDoorActivity extends Activity implements
 		}
 
 		Log.i(TAG, "Geometry ok");
+		return fillRatioCheck(detectedDoor);
+	}
+
+	private boolean isInsideMat(Point p) {
+		return p.x < mEdit.width() && p.y < mEdit.height();
+	}
+
+	private Door fillRatioCheck(Door detectedDoor) {
 		// Compare with edge img
 		double FR12 = calculateFillRatio(detectedDoor.getP1(),
 				detectedDoor.getP2());
@@ -489,7 +496,6 @@ public class FindMyDoorActivity extends Activity implements
 	private double calculateFillRatio(Point pA, Point pB) {
 		Mat lineImg = Mat.zeros(mEdit.height(), mEdit.width(), CvType.CV_32FC1);
 
-		Scalar white = new Scalar(255, 255, 255);
 		int thickness = 2;
 		Core.line(lineImg, pA, pB, white, thickness);
 

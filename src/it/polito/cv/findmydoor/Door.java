@@ -45,29 +45,19 @@ public class Door implements Comparable<Door> {
 		}
 	}
 
-	public Door(Line line1, Line line2, Line line3, Line line4) {
+	public Door(ArrayList<Line> lineArray) {
+		if (lineArray.size() != 4)
+			throw noDoorException;
+
 		List<Line> horLines = new ArrayList<Line>();
 		List<Line> verLines = new ArrayList<Line>();
 
-		if (line1.isHorizontal)
-			horLines.add(line1);
-		else
-			verLines.add(line1);
-
-		if (line2.isHorizontal)
-			horLines.add(line2);
-		else
-			verLines.add(line2);
-
-		if (line3.isHorizontal)
-			horLines.add(line3);
-		else
-			verLines.add(line3);
-
-		if (line4.isHorizontal)
-			horLines.add(line4);
-		else
-			verLines.add(line4);
+		for (Line l : lineArray) {
+			if (l.isHorizontal)
+				horLines.add(l);
+			else
+				verLines.add(l);
+		}
 
 		if (horLines.size() > 2 || verLines.size() > 2)
 			throw noDoorException;
@@ -77,17 +67,20 @@ public class Door implements Comparable<Door> {
 		l3 = horLines.get(1);
 		l4 = verLines.get(1);
 
-		if (!(l1.isConsecutive(l2) && l2.isConsecutive(l3)
-				&& l3.isConsecutive(l4) && l4.isConsecutive(l1)))
+		p1 = l1.getIntersection(l2);
+		p2 = l2.getIntersection(l3);
+		p3 = l3.getIntersection(l4);
+		p4 = l1.getIntersection(l4);
+
+		if (p1 == null || p2 == null || p3 == null || p4 == null)
 			throw noDoorException;
 
 		if (Math.abs(l2.dir - l4.dir) > Measure.parallelThres)
 			throw noDoorException;
 
-		double ratio = (l4.siz + l2.siz) / (l3.siz + l1.siz);
-
-		if (ratio < Measure.HWThresL || ratio > Measure.HWThresH)
+		if (!checkGeometry()) {
 			throw noDoorException;
+		}
 	}
 
 	public Point getP1() {
@@ -113,10 +106,10 @@ public class Door implements Comparable<Door> {
 	@Override
 	public int compareTo(Door another) {
 		// weight to compute the total score
-		int fillW = 100, geomW = 200;
+		int fillW = 200, geomW = 100;
 		// reduce fillW of the param thickness of the activity
 		// TODO: connect with activity
-		fillW /= 5;
+		fillW /= 2;
 
 		int rate = (int) (fillW * (this.avgFillRatio - another.avgFillRatio) + geomW
 				* (this.geomRate - another.geomRate));
@@ -184,8 +177,8 @@ public class Door implements Comparable<Door> {
 		double cSRatioDown = sizRatio - Measure.HWThresL;
 		double cSRatioUp = sizRatio - Measure.HWThresH;
 
-//		Log.v(TAG, "siz " + siz12 + " " + siz34 + " " + siz23 + " " + siz41);
-//		Log.v(TAG, "ratio " + sizRatio);
+		// Log.v(TAG, "siz " + siz12 + " " + siz34 + " " + siz23 + " " + siz41);
+		// Log.v(TAG, "ratio " + sizRatio);
 
 		if (cSRatioDown < 0 || cSRatioUp > 0) {
 			return false;

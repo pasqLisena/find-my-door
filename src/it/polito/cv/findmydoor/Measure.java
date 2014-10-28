@@ -59,6 +59,6 @@ public class Measure {
 	public static double HWThresH = 2.5;
 	
 	// Params Fill Ratio
-	public static double FRThresL = 0.05;
-	public static double FRThresH = 0.25;
+	public static double FRThresL = 0.15;
+	public static double FRThresH = 0.3;
 }
