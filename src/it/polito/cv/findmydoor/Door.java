@@ -12,7 +12,7 @@ public class Door implements Comparable<Door> {
 	private Point p1, p2, p3, p4;
 	private Line l1, l2, l3, l4;
 	private double avgFillRatio;
-	private double geomRate;// score based on geometry
+	private double geomScore;// score based on geometry
 
 	public Door(Point p1, Point p2, Point p3, Point p4) {
 		this.p1 = p1;
@@ -107,9 +107,9 @@ public class Door implements Comparable<Door> {
 		// TODO: connect with activity
 		fillW /= 2;
 
-		int rate = (int) (fillW * (this.avgFillRatio - another.avgFillRatio) + geomW
-				* (this.geomRate - another.geomRate));
-		return rate;
+		int score = (int) (fillW * (this.avgFillRatio - another.avgFillRatio) + geomW
+				* (this.geomScore - another.geomScore));
+		return score;
 	}
 
 	/*
@@ -191,7 +191,7 @@ public class Door implements Comparable<Door> {
 		sizeW /= 1; // (0, 1]
 		dirW /= 90; // [0, 90]
 
-		geomRate = (cSize12d - cSize12u + cSize41d - cSize41u + cSiz34d
+		geomScore = (cSize12d - cSize12u + cSize41d - cSize41u + cSiz34d
 				- cSiz34u + cSiz23d - cSiz23u + cSRatioDown - cSRatioUp)
 				* sizeW + (cDir12 - cDir41 - cDir23 + cDir34 - cParal) * dirW;
 

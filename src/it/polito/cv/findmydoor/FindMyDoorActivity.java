@@ -13,31 +13,21 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfPoint;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
-import org.opencv.ml.Ml;
-import org.opencv.utils.Converters;
 
 import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
-import android.view.MotionEvent;
-import android.view.View;
-import android.view.View.OnTouchListener;
 import android.view.Window;
 import android.view.WindowManager;
 
 public class FindMyDoorActivity extends Activity implements
 		CvCameraViewListener2 {
 	private static final String TAG = "OCV::Activity";
-	private static final String TAG_CANNY = "OCV::Activity CANNY";
 	private static final Scalar white = new Scalar(255, 255, 255);
 
 	private Mat mRgba; // original image
@@ -48,11 +38,7 @@ public class FindMyDoorActivity extends Activity implements
 	private List<Point> corners;
 
 	private Size imgSize;
-	private double imgDiag; // diagonal
-
 	private CameraBridgeViewBase mOpenCvCameraView; // interface to camera
-
-	private double dsRatio;
 
 	private boolean willResize;
 
@@ -79,7 +65,6 @@ public class FindMyDoorActivity extends Activity implements
 		mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.find_my_door_activity_surface_view);
 		mOpenCvCameraView.setCvCameraViewListener(this);
 	}
-
 
 	@Override
 	public void onPause() {
@@ -119,10 +104,8 @@ public class FindMyDoorActivity extends Activity implements
 
 	public void onCameraViewStarted(int width, int height) {
 		imgSize = new Size(width, height);
-		imgDiag = Math.sqrt(Math.pow(height, 2) + Math.pow(width, 2));
+		Math.sqrt(Math.pow(height, 2) + Math.pow(width, 2));
 		willResize = !Measure.dsSize.equals(imgSize);
-
-		dsRatio = imgDiag / Measure.diag;
 
 		mRgba = new Mat(imgSize, CvType.CV_8UC4);
 		corners = new ArrayList<Point>();
@@ -223,7 +206,7 @@ public class FindMyDoorActivity extends Activity implements
 			}
 		}
 
-		// Collections.sort(doors);
+		Collections.sort(doors);
 
 		// Up-sampling mEdit (edge image)
 		if (willResize) {
@@ -267,7 +250,7 @@ public class FindMyDoorActivity extends Activity implements
 			try {
 				dstList.add(new Line(start, end));
 			} catch (RuntimeException e) {
-				// do nothing --> not useful line
+				// do nothing --> useless line
 			}
 		}
 		return dstList;
@@ -288,24 +271,22 @@ public class FindMyDoorActivity extends Activity implements
 				Core.line(img, p1, p2, yellow, 3);
 			}
 		}
-		// if (doors.size() > 0) {
-		// // disegna la porta più probabile
-		// drawDoor(img, doors.get(0));
-		// }
 
-		if (doors != null) {
-			for (Door door : doors) {
-				drawDoor(img, door);
-			}
+		if (doors.size() > 0) {
+			// disegna la porta più probabile
+			drawDoor(img, doors.get(0));
 		}
+
+		// if (doors != null) {
+		// for (Door door : doors) {
+		// drawDoor(img, door);
+		// }
+		// }
 
 		// Draw Corners
 		if (cornersList != null) {
-			for (Point c : cornersList) {
+			for (Point c : cornersList)
 				Core.circle(img, c, 15, new Scalar(255, 0, 0), 2, 8, 0);
-				// Core.putText(mRgba, " " + cornersList.indexOf(c), c,
-				// Core.FONT_HERSHEY_PLAIN, 1.0, new Scalar(0, 0, 255));
-			}
 		}
 		return img;
 	}
@@ -339,24 +320,6 @@ public class FindMyDoorActivity extends Activity implements
 		cornersList.add(detectedDoor.getP3());
 		cornersList.add(detectedDoor.getP4());
 
-		return fillRatioCheck(detectedDoor);
-	}
-
-	/*
-	 * Check if one of rectangles formed by points p1,p2,p3,p4 is a door. The
-	 * four point can be not in order.
-	 */
-	private Door doorDetect(Point p1, Point p2, Point p3, Point p4) {
-		Door detectedDoor = null;
-
-		try {
-			detectedDoor = new Door(p1, p2, p3, p4);
-		} catch (RuntimeException re) {
-			// do nothing
-			return null;
-		}
-
-		Log.i(TAG, "Geometry ok");
 		return fillRatioCheck(detectedDoor);
 	}
 

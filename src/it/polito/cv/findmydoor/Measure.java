@@ -6,7 +6,7 @@ import org.opencv.core.Size;
 public class Measure {
 	
 	// computation is done every [waitingFrames] seconds
-	public static final int waitingFrames = 30;
+	public static final int waitingFrames = 15;
 	
 	/************ IMAGE *******************/
 	
@@ -28,23 +28,9 @@ public class Measure {
 	public static int houghThreshold = 60;
 	public static int houghMinLineSize = 50;
 	public static int houghLineGap = 30;
-
-	
-	/************ CORNERS DETECTION *******************/
-
-	// Params Shi Tomasi
-	public static int maxCorners = 50;
-	public static double qualityLevel = 0.2;
-	public static double minDistance = 40;
-	public static int blockSize1 = 10;
-	public static boolean useHarrisDetector = false;
-	public static double k1 = 0.04;
 	
 	
 	/************ DOORS DETECTION *******************/
-	
-	// Lines
-	public static double maxPointGap = 0.01; // 1% of camera diag (4px)
 	
 	// Params geometrici
 	public static double heightThresL = 0.3; // 30% of camera diag
@@ -52,7 +38,7 @@ public class Measure {
 	public static double widthThresL = 0.1; // 10% of camera diag
 	public static double widthThresH = 0.8; // 80% of camera diag
 
-	public static int dirThresL = 15;
+	public static int dirThresL = 40;
 	public static int dirThresH = 80;
 	public static int parallelThres = 3;
 
@@ -62,7 +48,6 @@ public class Measure {
 	// Params Fill Ratio
 	public static double FRThresL = 0.4;
 	public static double FRThresH = 0.8;
-	
 	
 	
 	/*
