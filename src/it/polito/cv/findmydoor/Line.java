@@ -4,7 +4,7 @@ import org.opencv.core.Point;
 
 public class Line {
 	public Point start, end;
-	public double dir, siz;
+	public double dir;
 	public boolean isHorizontal;
 
 	public Line(Point start, Point end) {
@@ -12,7 +12,6 @@ public class Line {
 		this.end = end;
 
 		dir = Measure.calcDirection(start, end);
-		siz = Measure.calcRelDistance(start, end);
 
 		if (dir < Measure.dirThresL) {
 			// short line

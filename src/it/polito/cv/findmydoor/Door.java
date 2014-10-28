@@ -147,7 +147,6 @@ public class Door implements Comparable<Door> {
 		if (cDir12 < 0 || cDir41 > 0 || cDir23 > 0 || cDir34 < 0 || cParal > 0) {
 			return false;
 		}
-		// Log.e(TAG, "paral "+cParal);
 
 		double cSize12d = siz12 - Measure.heightThresL;
 		double cSize12u = siz12 - Measure.heightThresH;
@@ -173,9 +172,6 @@ public class Door implements Comparable<Door> {
 		double cSRatioDown = sizRatio - Measure.HWThresL;
 		double cSRatioUp = sizRatio - Measure.HWThresH;
 
-		// Log.v(TAG, "siz " + siz12 + " " + siz34 + " " + siz23 + " " + siz41);
-		// Log.v(TAG, "ratio " + sizRatio);
-
 		if (cSRatioDown < 0 || cSRatioUp > 0) {
 			return false;
 		}
@@ -198,6 +194,5 @@ public class Door implements Comparable<Door> {
 		// if here, 1234 is a door
 		return true;
 	}
-
 
 }

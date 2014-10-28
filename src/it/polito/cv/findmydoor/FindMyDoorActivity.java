@@ -141,6 +141,7 @@ public class FindMyDoorActivity extends Activity implements
 	public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
 		if (waited < Measure.waitingFrames) {
 			waited++;
+//			return printMat(mReturn);
 			return printMat(inputFrame.rgba());
 		}
 		waited = 0;
