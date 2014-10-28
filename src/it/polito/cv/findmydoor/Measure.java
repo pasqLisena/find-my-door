@@ -1,5 +1,6 @@
 package it.polito.cv.findmydoor;
 
+import org.opencv.core.Point;
 import org.opencv.core.Size;
 
 public class Measure {
@@ -59,6 +60,35 @@ public class Measure {
 	public static double HWThresH = 2.5;
 	
 	// Params Fill Ratio
-	public static double FRThresL = 0.15;
-	public static double FRThresH = 0.3;
+	public static double FRThresL = 0.4;
+	public static double FRThresH = 0.8;
+	
+	
+	
+	/*
+	 * Calculate the relative distance between two points.
+	 * 
+	 * @return the distance within a range of [0,1]
+	 */
+	public static double calcRelDistance(Point i, Point j) {
+		return calcDistance(i, j) / Measure.diag;
+	}
+
+	/*
+	 * Calculate the absolute distance between two points.
+	 * 
+	 * @return the distance
+	 */
+	public static double calcDistance(Point i, Point j) {
+		double sizX = Math.pow((i.x - j.x), 2);
+		double sizY = Math.pow((i.y - j.y), 2);
+		return Math.sqrt(sizX + sizY);
+	}
+
+	public static double calcDirection(Point i, Point j) {
+		double dfX = i.x - j.x;
+		double dfY = i.y - j.y;
+		double dfRatio = Math.abs(dfX / dfY);
+		return Math.abs(Math.atan(dfRatio) * 180 / Math.PI);
+	}
 }

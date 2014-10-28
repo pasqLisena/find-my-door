@@ -35,7 +35,7 @@ import android.view.Window;
 import android.view.WindowManager;
 
 public class FindMyDoorActivity extends Activity implements
-		CvCameraViewListener2, OnTouchListener {
+		CvCameraViewListener2 {
 	private static final String TAG = "OCV::Activity";
 	private static final String TAG_CANNY = "OCV::Activity CANNY";
 	private static final Scalar white = new Scalar(255, 255, 255);
@@ -49,8 +49,6 @@ public class FindMyDoorActivity extends Activity implements
 
 	private Size imgSize;
 	private double imgDiag; // diagonal
-
-	private static boolean freeze; // stop the image as is
 
 	private CameraBridgeViewBase mOpenCvCameraView; // interface to camera
 
@@ -82,76 +80,6 @@ public class FindMyDoorActivity extends Activity implements
 		mOpenCvCameraView.setCvCameraViewListener(this);
 	}
 
-	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		super.onCreateOptionsMenu(menu);
-		MenuInflater inflater = getMenuInflater();
-		inflater.inflate(R.menu.menu, menu);
-		return true;
-	}
-
-	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
-		// Handle item selection
-		switch (item.getItemId()) {
-		case R.id.more_canny:
-			increaseCanny();
-			return true;
-		case R.id.less_canny:
-			decreaseCanny();
-			return true;
-		case R.id.incr_divarious_canny:
-			incrDivariousCanny();
-			return true;
-		case R.id.incr_fr:
-			incrFR();
-			return true;
-		case R.id.decr_fr:
-			decrFR();
-			return true;
-		default:
-			return super.onOptionsItemSelected(item);
-		}
-	}
-
-	private void incrFR() {
-		double incr = 0.5;
-		Measure.FRThresL += incr;
-		Measure.FRThresH += incr;
-		Log.e(TAG, "Soglia FR: " + Measure.FRThresH);
-	}
-
-	private void decrFR() {
-		double decr = -0.5;
-		if (Measure.FRThresL >= decr) {
-			Measure.FRThresL += decr;
-			Measure.FRThresH += decr;
-		}
-	}
-
-	private void incrDivariousCanny() {
-		int decr = 10;
-		if (Measure.cannyLowThres >= decr) {
-			Measure.cannyUpThres += decr;
-			Measure.cannyLowThres -= decr;
-		}
-	}
-
-	private void decreaseCanny() {
-		int decr = 20;
-		if (Measure.cannyUpThres >= decr && Measure.cannyLowThres >= decr) {
-			Measure.cannyUpThres -= decr;
-			Measure.cannyLowThres -= decr;
-		}
-		Log.d(TAG_CANNY, "Canny Thres changed in: " + Measure.cannyLowThres);
-	}
-
-	private void increaseCanny() {
-		int incr = 20;
-		Measure.cannyUpThres += incr;
-		Measure.cannyLowThres += incr;
-		Log.d(TAG_CANNY, "Canny Thres changed in: " + Measure.cannyLowThres);
-	}
 
 	@Override
 	public void onPause() {
@@ -172,8 +100,6 @@ public class FindMyDoorActivity extends Activity implements
 						case LoaderCallbackInterface.SUCCESS: {
 							Log.i(TAG, "OpenCV loaded successfully");
 							mOpenCvCameraView.enableView();
-							mOpenCvCameraView
-									.setOnTouchListener(FindMyDoorActivity.this);
 						}
 							break;
 						default: {
@@ -203,7 +129,6 @@ public class FindMyDoorActivity extends Activity implements
 
 		Log.d(TAG, "height: " + height);
 		Log.d(TAG, "width: " + width);
-		freeze = false;
 
 		waited = Measure.waitingFrames;
 	}
@@ -231,11 +156,6 @@ public class FindMyDoorActivity extends Activity implements
 	}
 
 	public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
-		if (freeze && mReturn != null) {
-			Core.putText(mReturn, " FREEZED ", new Point(10, 10),
-					Core.FONT_HERSHEY_PLAIN, 1.0, new Scalar(0, 0, 255));
-		}
-
 		if (waited < Measure.waitingFrames) {
 			waited++;
 			return printMat(inputFrame.rgba());
@@ -266,8 +186,8 @@ public class FindMyDoorActivity extends Activity implements
 				Measure.houghLineGap);
 
 		lineList = matToListLines(mLine);
-		Log.i(TAG, lineList.size() + " lines detected");
-		// Detect corners
+		Log.v(TAG, lineList.size() + " lines detected");
+
 		cornersList = new ArrayList<Point>();
 
 		mLine = Mat.zeros(mEdit.height(), mEdit.width(), mEdit.type());
@@ -280,7 +200,7 @@ public class FindMyDoorActivity extends Activity implements
 			Line line1 = lineList.get(i);
 			Core.line(mLine, line1.start, line1.end, white, thickness);
 		}
-		
+
 		for (int i = 0; i < lineList.size(); i++) {
 			Line line1 = lineList.get(i);
 
@@ -414,19 +334,12 @@ public class FindMyDoorActivity extends Activity implements
 			return null;
 		}
 
-		if (isInsideMat(detectedDoor.getP1())
-				&& isInsideMat(detectedDoor.getP2())
-				&& isInsideMat(detectedDoor.getP3())
-				&& isInsideMat(detectedDoor.getP4())) {
-			cornersList.add(detectedDoor.getP1());
-			cornersList.add(detectedDoor.getP2());
-			cornersList.add(detectedDoor.getP3());
-			cornersList.add(detectedDoor.getP4());
-//			return detectedDoor;
-			return fillRatioCheck(detectedDoor);
-		} else
-			return null;
+		cornersList.add(detectedDoor.getP1());
+		cornersList.add(detectedDoor.getP2());
+		cornersList.add(detectedDoor.getP3());
+		cornersList.add(detectedDoor.getP4());
 
+		return fillRatioCheck(detectedDoor);
 	}
 
 	/*
@@ -445,10 +358,6 @@ public class FindMyDoorActivity extends Activity implements
 
 		Log.i(TAG, "Geometry ok");
 		return fillRatioCheck(detectedDoor);
-	}
-
-	private boolean isInsideMat(Point p) {
-		return p.x < mEdit.width() && p.y < mEdit.height();
 	}
 
 	private Door fillRatioCheck(Door detectedDoor) {
@@ -516,39 +425,33 @@ public class FindMyDoorActivity extends Activity implements
 
 				oldLinePx = linePx;
 				linePx = lineCrop.get(j, i)[0];
-				if (linePx == 0) {
-					if (oldLinePx != 0) // border passed
+				double thres = 20;
+				if (linePx < thres) {
+					if (oldLinePx > thres) // border passed
 						break;
 					else
 						continue;
 				}
 				lengthAb++;
 
-				if (allLinesCrop.get(j, i)[0] != 0) {
+				if (allLinesCrop.get(j, i)[0] > thres) {
 					overLapAB++;
 				}
 			}
 		}
+
 		lineCrop.release();
 		allLinesCrop.release();
 
 		double fillRatio;
 		if (overLapAB == 0) {
 			fillRatio = 0;
-		} else
-			fillRatio = (double) overLapAB / (lengthAb / thickness);
-		// if (fillRatio > 0.3) {
-		Log.w(TAG, "overLap :" + fillRatio);
-		// Core.line(mReturn, pA, pB, white, 6);
-		// }
+		} else {
+			fillRatio = (double) overLapAB / lengthAb;
+			Log.w(TAG, "overLap :" + fillRatio);
+		}
 
 		return fillRatio;
 	}
 
-	@Override
-	public boolean onTouch(View v, MotionEvent event) {
-		v.performClick();
-		freeze = !freeze;
-		return false;
-	}
 }
